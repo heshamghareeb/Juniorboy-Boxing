@@ -10,6 +10,15 @@ class WaiverRepositoryImpl implements WaiverRepository {
   Stream<Waiver> watch() => FirebaseFirestore.instance
       .doc('legalDocuments/waiver')
       .snapshots()
+      .handleError((e) {
+        if (e is FirebaseException && e.code == 'permission-denied') return;
+        final s = e.toString().toLowerCase();
+        if (s.contains('permission-denied') ||
+            s.contains('insufficient permissions')) {
+          return;
+        }
+        throw e;
+      })
       .map((snapshot) => WaiverModel.fromMap(snapshot.data()));
 
   @override

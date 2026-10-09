@@ -15,6 +15,7 @@ import '../../../../core/widgets/jbb_empty_state.dart';
 import '../../../../core/widgets/jbb_loading.dart';
 import '../../../../core/widgets/page_content.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/widgets/sign_in_prompt_sheet.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../providers/store_provider.dart';
 import '../../domain/product.dart';
@@ -42,8 +43,8 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     try {
       final authUser = ref.read(authRepositoryProvider).currentUser;
       if (authUser == null || authUser.isAnonymous) {
-        await ref.read(authRepositoryProvider).googleSignIn();
-        if (mounted) {
+        final ok = await showSignInPrompt(context, ref);
+        if (ok && mounted) {
           showMessage(context, AppStrings.signedInTapBuyNowAgainTo);
         }
         return;

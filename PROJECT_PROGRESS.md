@@ -99,3 +99,25 @@
 - نُقلت إعلانات الصفحة الرئيسية، المنتجات المميزة، قسم الخطط، تذييل التواصل، المدونة، وعرض مشتريات العضوية إلى البنية الجديدة. أصبح الجدول والحجز يعتمدان أرصدة private/group/duo التي تتحقق منها وظائف الخلفية. بقي وضع المظهر System/Light/Dark ومفتاح `themeMode` كما كان؛ لم يُعد مفتاح التبديل الأسود القديم.
 - التحقق المحلي: `flutter analyze --no-pub` بلا مشكلات؛ `flutter test --no-pub --timeout 45s` نجح (67 اختبارًا، منها شاشات الميزات الجديدة في الوضعين واختبارات تحليل نماذج الجلسات والإعلانات والبرامج والعنوان). لا توجد علامات تعارض نصية، ولا مجلد `mobile/lib/data` أو مجلدات الميزات القديمة، ولا استدعاءات Firebase خارج data، ولا أيقونات Material أو ألوان hex داخل العرض. أمر grep الحرفي `Icons\.` يطابق أيضًا `AppIcons.` (88 نتيجة) ولذلك فحص الأيقونات الدقيق استثنى `AppIcons` وأظهر صفرًا.
 - الدمج لا يزال في حالة Git MERGE_HEAD وملفات `U` بانتظار staging والـcommit من المراجع حسب طلبه. لم تُجرَ تجربة حقيقية على Firebase أو Stripe أو جهاز؛ جاهزية الإنتاج والتحقق الخارجي للمرحلة 2 لم تتغير، والمرحلتان 5 و6 لا تزالان مفتوحتين.
+
+### إضافة تسجيل الدخول عبر أبل (Sign in with Apple) وترقية Flutter — 2026-10-08 (ضمن المرحلة 2)
+- تعيين Flutter 3.47.4 (Dart 3.13.3) كإصدار أساسي في بيئة النظام (`~/.zshrc`، `~/.zprofile`) وإعدادات المحرر (`.vscode/settings.json` و`mobile/.vscode/settings.json`).
+- إضافة حزمتي `sign_in_with_apple` و`crypto` إلى `pubspec.yaml`.
+- إنشاء ملف الصلاحيات `Runner.entitlements` مع `com.apple.developer.applesignin` وربطه بإعدادات البناء (Debug/Release/Profile) في `project.pbxproj`.
+- تحديث طبقة Domain: إضافة `hasAppleProvider` إلى `AuthAccount` ودعم `appleSignIn()` في `AuthRepository`.
+- تنفيذ طبقة Data في `AuthRemoteDataSource` و`AuthRepositoryImpl`: توليد nonce عشوائي آمن مشفر بـ SHA-256، طلب بيانات الاعتماد عبر `SignInWithApple.getAppleIDCredential`، تحويلها إلى `OAuthProvider('apple.com').credential`، ربط الحسابات المجهولة بأمان، وتجاهل الإلغاء اليدوي دون أخطاء مزعجة.
+- تحديث التوجيه `app_router`: التحقق من تسجيل الدخول الحقيقي عبر Google أو Apple لنقل المستخدم غير مكتمل الملف إلى `completeProfile`.
+- تحديث الواجهات:
+  - إضافة زر `SignInWithAppleButton` في `WelcomeScreen` بتصميم متوافق مع إرشادات أبل (HIG) في الوضعين الداكن والفاتح، يظهر أعلى زر Google على نظام iOS.
+  - إضافة نافذة `showSignInPrompt` لاختيار الدخول عبر Apple أو Google عند الشراء كمستخدم زائر في شاشتي المتجر `store_screen` والاشتراكات `membership_plans_section`.
+- التحقق المحلي:
+  - `flutter analyze` نجح بلا أي أخطاء أو تحذيرات.
+  - `flutter test` نجح (68 اختبارًا، بما فيها اختبار ظهور زر Apple على نظام iOS واختبارات الشاشات الـ 56).
+- تحديث معرف الحزمة لنظام iOS (Bundle Identifier): تم تعديله إلى `com.box.juniorboyboxing` في إعدادات Xcode (`project.pbxproj`)، وملف إعدادات Firebase (`firebase_options.dart`)، وملف `GoogleService-Info.plist`.
+- متطلبات مراجعة أبل (Apple Review Requirements):
+  1. حفظ اسم المستخدم الكامل (`givenName` و`familyName`) فور أول تسجيل دخول عبر أبل في `Firebase Auth displayName` ومستند Firestore `users/{uid}.fullName`.
+  2. إضافة زر وحوار تأكيد حذف الحساب (Delete Account) في شاشة `more_screen.dart`، واستدعاء `revokeTokenWithAuthorizationCode` لإلغاء التوكن من خوادم أبل عبر Firebase، ثم حذف الحساب عبر `user.delete()` وتشغيل تنظيف الخلفية في Cloud Functions `onUserDeleted`.
+- التحقق المحلي بعد التحديث: `flutter analyze` نجح بلا أخطاء؛ `flutter test` نجح (68 اختبارًا).
+- إصلاح Google Sign-In على iOS: تم تحديث `CFBundleURLSchemes` في `ios/Runner/Info.plist` ليطابق الـ `REVERSED_CLIENT_ID` الجديد (`com.googleusercontent.apps.772438105367-p9qqe5ft34k60qnon1psacpg70e4jlso`) لمنع انهيار التطبيق (`NSException` في `FLTGoogleSignInPlugin.m:171`).
+- إصلاح خطأ تسجيل الخروج (Sign Out Permission-Denied): تم تطويق تدفقات Firestore (`watchQuery` و`watchDocument`) بالتقاط استثناء `permission-denied` وإنهائها بنظافة عند تبديل حالة المصادقة، مع استثناء أخطاء الإلغاء الطبيعية من معالج Crashlytics، وتوجيه واجهة المستخدم قبل استدعاء `signOut` لمنع تداخل القنوات.
+- العوائق الخارجية: يلزم تسجيل App ID بالمعرف الجديد `com.box.juniorboyboxing` في حساب Apple Developer مع تفعيل Sign In with Apple، وتحديث تطبيق iOS في Firebase Console بالمعرف الجديد قبل الاختبار على جهاز حقيقي. المرحلة 2 مكتملة محليًا بانتظار الإعدادات الخارجية.

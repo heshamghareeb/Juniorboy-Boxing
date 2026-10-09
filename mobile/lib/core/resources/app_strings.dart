@@ -59,10 +59,32 @@ abstract final class AppStrings {
   static const address = '';
   static const privacy =
       'Your account information is used to manage gym memberships, bookings and communication. Card information is handled by Stripe and is not stored by the gym application. Parents and guardians manage accounts for children. Contact the gym to request access to or deletion of your information. Payment records may be retained for accounting obligations. The gym must review and publish its final privacy policy before public launch.';
-  static const terms =
-      'A session credit is reserved when you book and used after attendance or a recorded no-show. Cancel at least 24 hours before your class, unless the gym has published a different cancellation window. For late changes, contact the gym. Training requires appropriate supervision and compliance with coach instructions. A parent or guardian must register children. These terms must be reviewed by the gym before public launch.';
-  static const waiver =
-      'DRAFT — pending gym approval. Boxing, fitness, strength and conditioning, weight loss and self defense training involve risks, including strains, falls, concussion and serious injury. Follow coach instructions, use appropriate protective equipment, and stop if unwell or injured. Training does not guarantee weight loss, fitness or personal safety and does not replace medical advice. Participation is voluntary. A parent or legal guardian must sign for a minor. This draft does not release liability or waive rights that cannot legally be waived. Payments, cancellations and privacy are covered separately. Photo and marketing consent are separate. Contact Junior Boy Boxing at email@juniorboyboxing.com with questions. The approved full document will appear here when published.';
+  static const termsOfParticipationTitle =
+      'Terms of Participation & Liability Disclaimer';
+  static const termsOfParticipationBody =
+      'Terms of Participation & Liability Disclaimer\n\n'
+      'By registering, I confirm that I voluntarily participate in the training of Junior Boy Boxing.\n\n'
+      'I understand that boxing training, fitness exercises, physical training, and sparring involve risks of injury, including bruises, injuries, falls, concussions, and other possible injuries.\n\n'
+      'I undertake to follow the safety instructions of the trainers and to immediately report any health problems or injuries.\n\n'
+      'I accept the risks associated with the training and, to the extent permitted by law, waive claims for injuries arising from the ordinary risks of training or ordinary negligence.\n\n'
+      'For participants under the age of 18, a parent or legal guardian must confirm participation.\n\n\n'
+      'By registering or giving my electronic consent, I confirm:\n\n'
+      '- I have read and understood these terms of participation.\n'
+      '- I understand that boxing and fitness activities involve risks of injury.\n'
+      '- I had the opportunity to ask questions before participating.\n'
+      '- I participate in the training voluntarily.\n'
+      '- I understand that this agreement concerns certain legal rights.\n'
+      '- I accept these terms of participation voluntarily and without coercion.\n\n\n'
+      'I have read, understood, and accept the terms of participation.';
+  static const terms = termsOfParticipationBody;
+  static const iAgreeToTermsOfParticipation =
+      'I have read, understood, and accept the ';
+  static const termsOfParticipationLink =
+      'terms of participation';
+  static const mustAcceptTermsToContinue =
+      'Please accept the terms of participation to continue.';
+  static const acceptAndContinue = 'I Accept & Continue';
+  static const waiver = termsOfParticipationBody;
   static const reviewsRatings = 'Reviews & Ratings';
   static const deleteYourReview = 'Delete your review';
   static const shareYourExperienceOptional = 'Share your experience (optional)';
@@ -336,7 +358,11 @@ abstract final class AppStrings {
   static const uiMonday = 'Monday';
   static const uiSunday = 'Sunday';
   static const uiBoxingClass = 'Boxing class';
+  static const uiContinueWithApple = 'Continue with Apple';
   static const uiContinueWithGoogle = 'Continue with Google';
+  static const uiSignInToContinue = 'Sign in to continue';
+  static const uiSignInPromptSubtitle =
+      'Connect your account to save your memberships and orders.';
   static const uiSkip = 'Skip';
   static const uiNoClassesScheduledForThisSelectionContactThe =
       'No classes scheduled for this selection. Contact the gym for availability.';
@@ -356,4 +382,11 @@ abstract final class AppStrings {
   static const uiFullyBooked = 'Fully booked';
   static const uiJuniorBoyBoxingDisciplineBuildsChampions =
       'Junior Boy Boxing. Discipline builds champions.';
+  static const uiDeleteAccount = 'Delete Account';
+  static const uiDeleteAccountConfirmTitle = 'Delete Account?';
+  static const uiDeleteAccountConfirmMessage =
+      'Are you sure you want to permanently delete your account? All your bookings, session credits, and profile data will be permanently removed. This action cannot be undone.';
+  static const uiCancel = 'Cancel';
+  static const uiDelete = 'Delete';
+  static const uiAccountDeleted = 'Account deleted successfully';
 }

@@ -51,15 +51,14 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBEL-wn5kpLq2XkARZ-2Zq3wcvFnTQuqs0',
-    appId: '1:772438105367:ios:80fe0d32bb600ce7a66b52',
+    appId: '1:772438105367:ios:072d3ff0f75ba6f0a66b52',
     messagingSenderId: '772438105367',
     projectId: 'box-jbb',
     storageBucket: 'box-jbb.firebasestorage.app',
-    androidClientId: '772438105367-nreb62mhfm2bfu7edis68hb4tsmhrvsv.apps.googleusercontent.com',
-    iosClientId: '772438105367-1gt9qnqsehm7vpr51tfsvt91b549qcl6.apps.googleusercontent.com',
-    iosBundleId: 'com.box.sharif.juniorBoyBoxing',
+    androidClientId: '772438105367-5dvuotrv7b1i557vb77n699gu5qac0u0.apps.googleusercontent.com',
+    iosClientId: '772438105367-p9qqe5ft34k60qnon1psacpg70e4jlso.apps.googleusercontent.com',
+    iosBundleId: 'com.box.juniorboyboxing',
   );
-
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDbRtbKQKE_Lle6SYd3OeQcehFVnbte-uo',
     appId: '1:772438105367:android:33effdddc1c2550aa66b52',

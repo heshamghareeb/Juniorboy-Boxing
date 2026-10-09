@@ -42,9 +42,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (auth.isLoading) return null;
       final user = auth.value;
       if (user == null && !isAuth) return AppRoutes.welcome;
-      final signedInWithGoogle =
-          user != null && !user.isAnonymous && user.hasGoogleProvider;
-      if (signedInWithGoogle &&
+      final signedIn = user != null &&
+          !user.isAnonymous &&
+          (user.hasGoogleProvider || user.hasAppleProvider);
+      if (signedIn &&
           ![
             AppRoutes.completeProfile,
             AppRoutes.waiver,
@@ -177,10 +178,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.terms,
-        builder: (c, s) => const InformationScreen(
-          title: 'Terms of Service',
-          text: AppStrings.terms,
-        ),
+        builder: (c, s) {
+          final showAccept =
+              s.extra is Map && (s.extra as Map)['showAccept'] == true;
+          return InformationScreen(
+            title: AppStrings.termsOfParticipationTitle,
+            text: AppStrings.termsOfParticipationBody,
+            showAcceptButton: showAccept,
+          );
+        },
       ),
       GoRoute(path: AppRoutes.waiver, builder: (c, s) => const WaiverScreen()),
     ],

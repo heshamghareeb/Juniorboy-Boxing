@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -33,7 +35,11 @@ class _CompleteProfileState extends ConsumerState<CompleteProfileScreen> {
       phone = TextEditingController(),
       childName = TextEditingController(),
       childAge = TextEditingController();
-  bool busy = false, loaded = false, photoBusy = false;
+  bool busy = false,
+      loaded = false,
+      photoBusy = false,
+      termsAccepted = false,
+      termsError = false;
   @override
   void dispose() {
     houseNumber.dispose();
@@ -67,6 +73,11 @@ class _CompleteProfileState extends ConsumerState<CompleteProfileScreen> {
 
   Future<void> save() async {
     if (!form.currentState!.validate()) return;
+    if (!termsAccepted) {
+      setState(() => termsError = true);
+      showMessage(context, AppStrings.mustAcceptTermsToContinue);
+      return;
+    }
     setState(() => busy = true);
     try {
       await ref.read(userRepositoryProvider).save({
@@ -80,6 +91,9 @@ class _CompleteProfileState extends ConsumerState<CompleteProfileScreen> {
         'phone': phone.text.trim(),
         'childName': childName.text.trim(),
         'childAge': int.tryParse(childAge.text) ?? 0,
+        'termsAccepted': true,
+        'termsAcceptedAt': FieldValue.serverTimestamp(),
+        'termsVersion': 'v1',
       });
       if (mounted) {
         if (context.canPop()) {
@@ -100,6 +114,9 @@ class _CompleteProfileState extends ConsumerState<CompleteProfileScreen> {
     final user = ref.watch(profileProvider).value;
     if (user != null && !loaded) {
       loaded = true;
+      if (user.termsAccepted) {
+        termsAccepted = true;
+      }
       final parsed = StructuredAddress.parse(user.address);
       houseNumber.text = parsed.houseNumber;
       streetName.text = parsed.streetName;
@@ -211,6 +228,94 @@ class _CompleteProfileState extends ConsumerState<CompleteProfileScreen> {
                 decoration: const InputDecoration(labelText: AppStrings.phone),
                 validator: Validators.phone,
               ),
+              const SizedBox(height: AppSizes.s20),
+              Container(
+                decoration: BoxDecoration(
+                  color: termsError
+                      ? context.palette.accentTint.withValues(alpha: 0.35)
+                      : context.palette.surface,
+                  borderRadius: BorderRadius.circular(AppSizes.radiusCard),
+                  border: Border.all(
+                    color: termsError
+                        ? context.palette.accent
+                        : (termsAccepted
+                            ? context.palette.accent.withValues(alpha: 0.6)
+                            : context.palette.separator),
+                    width: termsError ? 1.5 : 1.0,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSizes.s12,
+                  vertical: AppSizes.s8,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: termsAccepted,
+                      activeColor: context.palette.accent,
+                      onChanged: (v) {
+                        setState(() {
+                          termsAccepted = v ?? false;
+                          if (termsAccepted) termsError = false;
+                        });
+                      },
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: AppSizes.s12),
+                        child: Text.rich(
+                          TextSpan(
+                            text: AppStrings.iAgreeToTermsOfParticipation,
+                            style: TextStyle(
+                              fontSize: AppSizes.font14,
+                              color: context.palette.textPrimary,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: AppStrings.termsOfParticipationLink,
+                                style: TextStyle(
+                                  color: context.palette.accent,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
+                                recognizer: TapGestureRecognizer()
+                                  ..onTap = () async {
+                                    final agreed = await context.push<bool>(
+                                      AppRoutes.terms,
+                                      extra: {'showAccept': true},
+                                    );
+                                    if (agreed == true && mounted) {
+                                      setState(() {
+                                        termsAccepted = true;
+                                        termsError = false;
+                                      });
+                                    }
+                                  },
+                              ),
+                              const TextSpan(text: '.'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (termsError) ...[
+                const SizedBox(height: AppSizes.s8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.s8),
+                  child: Text(
+                    AppStrings.mustAcceptTermsToContinue,
+                    style: TextStyle(
+                      color: context.palette.accent,
+                      fontSize: AppSizes.font12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSizes.s28),
               JbbButton(
                 label: AppStrings.continueButton,

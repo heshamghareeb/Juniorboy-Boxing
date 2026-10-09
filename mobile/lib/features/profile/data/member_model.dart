@@ -26,6 +26,7 @@ class MemberModel extends Member {
     required super.waiverParticipantAge,
     required super.pushNotifications,
     required super.emailNotifications,
+    super.termsAccepted,
     super.dateOfBirth,
     super.profilePicUrl,
     super.privateSessionsRemaining,
@@ -61,6 +62,7 @@ class MemberModel extends Member {
       waiverParticipantAge: (map['waiverParticipantAge'] as num?)?.toInt(),
       pushNotifications: preferences?['push'] as bool? ?? true,
       emailNotifications: preferences?['email'] as bool? ?? true,
+      termsAccepted: map['termsAccepted'] as bool? ?? false,
       dateOfBirth: map['dateOfBirth'] == null ? null : readDate(map['dateOfBirth']),
       profilePicUrl: nonEmpty(map['profilePicUrl'] as String?),
       privateSessionsRemaining:

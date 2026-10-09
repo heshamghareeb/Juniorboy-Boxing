@@ -42,8 +42,12 @@ class PageContent extends StatelessWidget {
         ...children,
       ],
     );
-    return refresh == null
+    final content = refresh == null
         ? view
         : RefreshIndicator(onRefresh: refresh!, child: view);
+    return Material(
+      type: MaterialType.transparency,
+      child: content,
+    );
   }
 }

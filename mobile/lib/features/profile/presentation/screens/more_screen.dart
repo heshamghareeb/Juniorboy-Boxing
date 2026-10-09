@@ -71,6 +71,7 @@ class MoreScreen extends ConsumerWidget {
           ),
         ),
         const Center(child: SocialLinksRow()),
+        SizedBox(height: 10),
         SettingsGroup(
           children: [
             for (final item in [
@@ -155,8 +156,8 @@ class MoreScreen extends ConsumerWidget {
         OutlinedButton(
           onPressed: () async {
             try {
-              await ref.read(authRepositoryProvider).signOut();
               if (context.mounted) context.go(AppRoutes.welcome);
+              await ref.read(authRepositoryProvider).signOut();
             } catch (e) {
               if (context.mounted) showMessage(context, friendlyError(e));
             }
@@ -166,7 +167,70 @@ class MoreScreen extends ConsumerWidget {
             style: TextStyle(color: context.palette.accent),
           ),
         ),
+        SizedBox(height: AppSizes.s8),
+        TextButton(
+          onPressed: () => _confirmDeleteAccount(context, ref),
+          child: Text(
+            AppStrings.uiDeleteAccount,
+            style: TextStyle(
+              color: context.palette.textSecondary,
+              fontSize: AppSizes.font13,
+            ),
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _confirmDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          AppStrings.uiDeleteAccountConfirmTitle,
+          style: TextStyle(
+            color: dialogContext.palette.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          AppStrings.uiDeleteAccountConfirmMessage,
+          style: TextStyle(color: dialogContext.palette.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              AppStrings.uiCancel,
+              style: TextStyle(color: dialogContext.palette.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              AppStrings.uiDelete,
+              style: TextStyle(
+                color: dialogContext.palette.accent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+    try {
+      await ref.read(authRepositoryProvider).deleteAccount();
+      if (context.mounted) {
+        showMessage(context, AppStrings.uiAccountDeleted);
+        context.go(AppRoutes.welcome);
+      }
+    } catch (e) {
+      if (context.mounted) showMessage(context, friendlyError(e));
+    }
   }
 }

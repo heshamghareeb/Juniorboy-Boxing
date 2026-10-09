@@ -9,6 +9,7 @@ import '../../../../core/widgets/jbb_button.dart';
 import '../../../../core/widgets/jbb_empty_state.dart';
 import '../../../../core/widgets/jbb_loading.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/widgets/sign_in_prompt_sheet.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../providers/membership_provider.dart';
 import '../widgets/plan_card.dart';
@@ -28,8 +29,8 @@ class _MembershipState extends ConsumerState<MembershipPlansSection> {
     try {
       final authUser = ref.read(authRepositoryProvider).currentUser;
       if (authUser == null || authUser.isAnonymous) {
-        await ref.read(authRepositoryProvider).googleSignIn();
-        if (mounted) {
+        final ok = await showSignInPrompt(context, ref);
+        if (ok && mounted) {
           showMessage(
             context,
             AppStrings.signedInCompleteYourProfileThenChoose,

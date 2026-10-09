@@ -47,9 +47,26 @@ abstract final class FirebaseService {
       await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
         !kDebugMode,
       );
-      FlutterError.onError =
-          FirebaseCrashlytics.instance.recordFlutterFatalError;
+      bool isPermissionDenied(Object? error) {
+        if (error == null) return false;
+        if (error is FirebaseException && error.code == 'permission-denied') {
+          return true;
+        }
+        final s = error.toString().toLowerCase();
+        return s.contains('permission-denied') ||
+            s.contains('insufficient permissions');
+      }
+
+      FlutterError.onError = (details) {
+        if (isPermissionDenied(details.exception)) {
+          return;
+        }
+        FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+      };
       PlatformDispatcher.instance.onError = (error, stack) {
+        if (isPermissionDenied(error)) {
+          return true;
+        }
         FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
         return true;
       };

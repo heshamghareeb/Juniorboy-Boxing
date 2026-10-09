@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Used to choose a photo for your profile or a product image.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app requires camera access to allow you to take profile pictures and scan codes.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
@@ -39,7 +41,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.772438105367-1gt9qnqsehm7vpr51tfsvt91b549qcl6</string>
+				<string>com.googleusercontent.apps.772438105367-p9qqe5ft34k60qnon1psacpg70e4jlso</string>
 			</array>
 		</dict>
 	</array>

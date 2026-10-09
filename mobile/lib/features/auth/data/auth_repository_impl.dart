@@ -17,6 +17,9 @@ class AuthRepositoryImpl implements AuthRepository {
           hasGoogleProvider: user.providerData.any(
             (provider) => provider.providerId == 'google.com',
           ),
+          hasAppleProvider: user.providerData.any(
+            (provider) => provider.providerId == 'apple.com',
+          ),
         );
 
   @override
@@ -29,8 +32,14 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> googleSignIn() => source.googleSignIn();
 
   @override
+  Future<void> appleSignIn() => source.appleSignIn();
+
+  @override
   Future<void> continueAsGuest() => source.continueAsGuest();
 
   @override
   Future<void> signOut() => source.signOut();
+
+  @override
+  Future<void> deleteAccount() => source.deleteAccount();
 }

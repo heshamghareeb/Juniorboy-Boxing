@@ -4,9 +4,10 @@ class AuthAccount {
     required this.email,
     required this.isAnonymous,
     required this.hasGoogleProvider,
+    required this.hasAppleProvider,
   });
 
   final String uid;
   final String? email;
-  final bool isAnonymous, hasGoogleProvider;
+  final bool isAnonymous, hasGoogleProvider, hasAppleProvider;
 }

@@ -26,4 +26,22 @@ void main() {
     expect(find.text('Skip'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('welcome shows Continue with Apple on iOS', (tester) async {
+    GoogleFonts.config.allowRuntimeFetching = false;
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: lightTheme.copyWith(platform: TargetPlatform.iOS),
+        home: const WelcomeScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Continue with Apple'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

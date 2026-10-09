@@ -8,13 +8,10 @@ class ReviewRemoteDataSource extends CachedRepository {
     'reviews',
   );
 
-  Stream<Map<String, dynamic>> stats() => db
-      .doc('reviewStats/summary')
-      .snapshots()
-      .map(
-        (snapshot) =>
-            normalize(snapshot.data()) as Map<String, dynamic>? ?? const {},
-      );
+  Stream<Map<String, dynamic>> stats() => watchDocument(
+    db.doc('reviewStats/summary'),
+    'review_stats',
+  );
 
   Future<void> submitReview({required int rating, required String comment}) =>
       FirebaseFunctions.instance.httpsCallable('submitReview').call({

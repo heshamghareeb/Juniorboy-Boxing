@@ -85,7 +85,7 @@ class _WaiverState extends ConsumerState<WaiverScreen> {
                     ),
                   SizedBox(height: AppSizes.s16),
                   Text(
-                    published ? waiver.body! : AppStrings.waiver,
+                    AppStrings.termsOfParticipationBody,
                     style: TextStyle(height: AppSizes.lineHeightLegal),
                   ),
                   SizedBox(height: AppSizes.s24),
