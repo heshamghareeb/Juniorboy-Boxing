@@ -33,6 +33,9 @@ class AuthRemoteDataSource {
   }
 
   Future<void> googleSignIn() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     final googleUser = await _googleSignIn.signIn();
     if (googleUser == null) return;
     final googleAuth = await googleUser.authentication;
@@ -134,6 +137,9 @@ class AuthRemoteDataSource {
     } catch (_) {
       // Signing out must remain available when the device is offline.
     }
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     await auth.signOut();
     await Hive.box('jbb_cache').clear();
   }
@@ -158,6 +164,9 @@ class AuthRemoteDataSource {
         rethrow;
       }
     }
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     try {
       await NotificationService.instance.unregister();
     } catch (_) {
