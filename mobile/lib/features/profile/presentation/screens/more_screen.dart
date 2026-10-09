@@ -78,7 +78,6 @@ class MoreScreen extends ConsumerWidget {
           children: [
             for (final item in [
               (AppStrings.myBookings, AppIcons.calendar, AppRoutes.bookings),
-              // (AppStrings.navMembership, AppIcons.crown, AppRoutes.membership),
               (AppStrings.gymStore, AppIcons.shoppingBag, AppRoutes.store),
             ])
               SettingsRow(
