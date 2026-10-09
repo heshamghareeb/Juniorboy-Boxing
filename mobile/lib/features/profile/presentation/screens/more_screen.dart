@@ -17,6 +17,7 @@ import '../../../../core/widgets/page_content.dart';
 import '../../../../core/widgets/settings_group.dart';
 import '../../../../core/widgets/social_links_row.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../favorites/presentation/providers/favorites_provider.dart';
 import '../providers/profile_provider.dart';
 
 class MoreScreen extends ConsumerWidget {
@@ -25,6 +26,7 @@ class MoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(profileProvider).value;
     final themeMode = ref.watch(themeModeProvider);
+    final favCount = ref.watch(totalFavoritesCountProvider);
     return PageContent(
       title: AppStrings.more,
       children: [
@@ -78,6 +80,54 @@ class MoreScreen extends ConsumerWidget {
               (AppStrings.myBookings, AppIcons.calendar, AppRoutes.bookings),
               (AppStrings.navMembership, AppIcons.crown, AppRoutes.membership),
               (AppStrings.gymStore, AppIcons.shoppingBag, AppRoutes.store),
+            ])
+              SettingsRow(
+                icon: item.$2,
+                title: item.$1,
+                onTap: () => context.safeNavigate(item.$3),
+              ),
+            SettingsRow(
+              iconWidget: Container(
+                width: AppSizes.iconChip,
+                height: AppSizes.iconChip,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(AppSizes.iconChipRadius),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  size: AppSizes.s18,
+                  color: Colors.redAccent,
+                ),
+              ),
+              title: AppStrings.favorites,
+              trailing: (favCount > 0)
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSizes.s8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(AppSizes.radius8),
+                        border: Border.all(
+                          color: Colors.redAccent.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        '$favCount',
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppSizes.font11,
+                        ),
+                      ),
+                    )
+                  : null,
+              onTap: () => context.safeNavigate(AppRoutes.favorites),
+            ),
+            for (final item in [
               (AppStrings.reviewsRatings, AppIcons.star, AppRoutes.reviews),
               (AppStrings.myAccount, AppIcons.receipt, AppRoutes.payments),
               (

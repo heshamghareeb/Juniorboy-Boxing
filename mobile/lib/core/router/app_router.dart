@@ -24,6 +24,7 @@ import '../../features/payments/presentation/screens/payments_screen.dart';
 import '../../features/profile/presentation/screens/waiver_screen.dart';
 import '../../features/reviews/presentation/screens/reviews_screen.dart';
 import '../../features/store/presentation/screens/store_screen.dart';
+import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../resources/app_strings.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
@@ -124,6 +125,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.store,
         name: 'store',
         builder: (c, s) => const StoreScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.favorites,
+        name: 'favorites',
+        builder: (c, s) => const FavoritesScreen(),
       ),
       GoRoute(
         path: AppRoutes.membership,

@@ -389,4 +389,12 @@ abstract final class AppStrings {
   static const uiCancel = 'Cancel';
   static const uiDelete = 'Delete';
   static const uiAccountDeleted = 'Account deleted successfully';
+  static const favorites = 'Favorites';
+  static const storeFavorites = 'Store Items';
+  static const membershipFavorites = 'Memberships';
+  static const noFavoritesYet = 'No favorites added yet';
+  static const noFavoritesHint =
+      'Tap the heart icon on any store product or membership plan to save it here.';
+  static const exploreStore = 'Explore Store';
+  static const viewPlans = 'View Plans';
 }

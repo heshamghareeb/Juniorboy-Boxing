@@ -377,7 +377,10 @@ class _StorePurchases extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final allProducts = ref.watch(productsProvider).value ?? const [];
+    final activeProducts = ref.watch(productsProvider).value ?? const [];
+    final adminProducts = ref.watch(productsAdminProvider).value ?? const [];
+    final allProducts = adminProducts.isNotEmpty ? adminProducts : activeProducts;
+
     final purchases =
         (ref.watch(paymentsProvider).value ?? const <Payment>[])
             .where(
@@ -441,11 +444,25 @@ class _StorePurchases extends ConsumerWidget {
             Builder(
               builder: (context) {
                 final product = allProducts
-                    .where((p) => p.id == payment.productId)
+                    .where(
+                      (p) =>
+                          p.id == payment.productId ||
+                          (payment.productName != null &&
+                              p.name?.toLowerCase() ==
+                                  payment.productName!.toLowerCase()),
+                    )
                     .firstOrNull;
-                final imageUrl = (product?.imageUrls.isNotEmpty == true)
-                    ? product!.imageUrls.first
-                    : product?.imageUrl;
+
+                final imageUrl = (product?.imageUrl?.isNotEmpty == true)
+                    ? product!.imageUrl
+                    : (product?.imageUrls.isNotEmpty == true)
+                        ? product!.imageUrls.first
+                        : null;
+
+                final hasSize = payment.size != null && payment.size!.isNotEmpty;
+                final productName = payment.productName?.isNotEmpty == true
+                    ? payment.productName!
+                    : product?.name ?? AppStrings.uiProduct;
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: AppSizes.s12),
@@ -461,8 +478,8 @@ class _StorePurchases extends ConsumerWidget {
                                 AppSizes.radius12,
                               ),
                               child: Container(
-                                width: 68,
-                                height: 68,
+                                width: 78,
+                                height: 78,
                                 decoration: BoxDecoration(
                                   color: context.palette.elevated,
                                   borderRadius: BorderRadius.circular(
@@ -479,8 +496,8 @@ class _StorePurchases extends ConsumerWidget {
                                         fit: BoxFit.cover,
                                         placeholder: (context, url) => Center(
                                           child: SizedBox(
-                                            width: 20,
-                                            height: 20,
+                                            width: 22,
+                                            height: 22,
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2,
                                               color: context.palette.accent,
@@ -488,85 +505,82 @@ class _StorePurchases extends ConsumerWidget {
                                           ),
                                         ),
                                         errorWidget: (context, url, error) =>
-                                            Center(
-                                              child: AppIcon(
-                                                AppIcons.boxingGlove,
-                                                size: AppSizes.s28,
-                                                color: context.palette.accent,
-                                              ),
-                                            ),
+                                            _buildPlaceholderImage(context),
                                       )
-                                    : Center(
-                                        child: AppIcon(
-                                          AppIcons.boxingGlove,
-                                          size: AppSizes.s28,
-                                          color: context.palette.accent,
-                                        ),
-                                      ),
+                                    : _buildPlaceholderImage(context),
                               ),
                             ),
-                            const SizedBox(width: AppSizes.s12),
+                            const SizedBox(width: AppSizes.s14),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   if (product?.category != null &&
                                       product!.category!.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 2),
+                                    Container(
+                                      margin: const EdgeInsets.only(bottom: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 1.5,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: context.palette.accent
+                                            .withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(
+                                          AppSizes.radius4,
+                                        ),
+                                      ),
                                       child: Text(
                                         product.category!.toUpperCase(),
                                         style: TextStyle(
                                           color: context.palette.accent,
-                                          fontSize: AppSizes.font11,
+                                          fontSize: AppSizes.font10,
                                           fontWeight: FontWeight.bold,
-                                          letterSpacing: 0.5,
+                                          letterSpacing: 0.6,
                                         ),
                                       ),
                                     ),
                                   Text(
-                                    payment.productName?.isNotEmpty == true
-                                        ? payment.productName!
-                                        : product?.name ?? AppStrings.uiProduct,
+                                    productName,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: AppSizes.font16,
                                       letterSpacing: -0.2,
+                                      height: 1.2,
                                     ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(height: AppSizes.s4),
+                                  const SizedBox(height: AppSizes.s6),
                                   Wrap(
                                     spacing: AppSizes.s6,
                                     runSpacing: AppSizes.s4,
                                     crossAxisAlignment:
                                         WrapCrossAlignment.center,
                                     children: [
-                                      if (payment.size != null &&
-                                          payment.size!.isNotEmpty)
+                                      if (hasSize)
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: AppSizes.s8,
                                             vertical: 2,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: context.palette.accent
-                                                .withValues(alpha: 0.12),
-                                            borderRadius: BorderRadius.circular(
+                                            color: context.palette.surface,
+                                            borderRadius:
+                                                BorderRadius.circular(
                                               AppSizes.radius4,
                                             ),
                                             border: Border.all(
-                                              color: context.palette.accent
-                                                  .withValues(alpha: 0.25),
+                                              color: context.palette.separator,
                                             ),
                                           ),
                                           child: Text(
                                             'Size: ${payment.size}',
                                             style: TextStyle(
                                               fontSize: AppSizes.font11,
-                                              fontWeight: FontWeight.bold,
-                                              color: context.palette.accent,
+                                              fontWeight: FontWeight.w600,
+                                              color:
+                                                  context.palette.textSecondary,
                                             ),
                                           ),
                                         ),
@@ -574,7 +588,8 @@ class _StorePurchases extends ConsumerWidget {
                                         dateLabel(payment.createdAt),
                                         style: TextStyle(
                                           fontSize: AppSizes.font12,
-                                          color: context.palette.textSecondary,
+                                          color:
+                                              context.palette.textSecondary,
                                         ),
                                       ),
                                     ],
@@ -585,9 +600,10 @@ class _StorePurchases extends ConsumerWidget {
                             const SizedBox(width: AppSizes.s8),
                             Text(
                               '\$${(payment.amount / 100).toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: AppSizes.font18,
+                                fontSize: AppSizes.font17,
+                                color: context.palette.accent,
                               ),
                             ),
                           ],
@@ -600,7 +616,7 @@ class _StorePurchases extends ConsumerWidget {
                           ),
                           decoration: BoxDecoration(
                             color: context.palette.surface.withValues(
-                              alpha: 0.6,
+                              alpha: 0.8,
                             ),
                             borderRadius: BorderRadius.circular(
                               AppSizes.radius8,
@@ -622,7 +638,7 @@ class _StorePurchases extends ConsumerWidget {
                                   boxShadow: [
                                     BoxShadow(
                                       color: context.palette.success
-                                          .withValues(alpha: 0.4),
+                                          .withValues(alpha: 0.45),
                                       blurRadius: 4,
                                       spreadRadius: 1,
                                     ),
@@ -633,8 +649,8 @@ class _StorePurchases extends ConsumerWidget {
                               Expanded(
                                 child: Text(
                                   payment.estimatedDeliveryDate != null
-                                      ? 'Pickup: ${dateLabel(payment.estimatedDeliveryDate!)}'
-                                      : 'Ready for pickup at gym',
+                                      ? 'Pickup scheduled: ${dateLabel(payment.estimatedDeliveryDate!)}'
+                                      : 'Ready for pickup at gym 🥊',
                                   style: TextStyle(
                                     color: context.palette.textPrimary,
                                     fontSize: AppSizes.font12,
@@ -661,6 +677,16 @@ class _StorePurchases extends ConsumerWidget {
               },
             ),
         ],
+      ),
+    );
+  }
+
+  static Widget _buildPlaceholderImage(BuildContext context) {
+    return Center(
+      child: AppIcon(
+        AppIcons.boxingGlove,
+        size: AppSizes.s32,
+        color: context.palette.accent.withValues(alpha: 0.8),
       ),
     );
   }

@@ -8,6 +8,7 @@ import '../../../../core/resources/app_strings.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/jbb_card.dart';
 import '../../domain/membership_plan.dart';
+import '../../../favorites/presentation/widgets/favorite_heart_button.dart';
 
 class PlanCard extends StatelessWidget {
   const PlanCard({
@@ -29,10 +30,12 @@ class PlanCard extends StatelessWidget {
       child: JbbCard(
         selected: selected,
         onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            if (plan.imageUrl != null) ...[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (plan.imageUrl != null) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppSizes.radius8),
                 child: CachedNetworkImage(
@@ -141,7 +144,19 @@ class PlanCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
+        Positioned(
+          top: 0,
+          right: 0,
+          child: FavoriteHeartButton(
+            id: plan.id,
+            type: FavoriteTargetType.plan,
+            size: 18,
+            padding: const EdgeInsets.all(6),
+          ),
+        ),
+      ],
+    ),
+  ),
+);
   }
 }

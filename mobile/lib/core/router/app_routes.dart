@@ -5,6 +5,7 @@ abstract final class AppRoutes {
   static const more = '/more';
   static const store = '/store';
   static const bookings = '/bookings';
+  static const favorites = '/favorites';
   static const profile = '/profile';
   static const completeProfile = '/complete-profile';
   static const notifications = '/notifications';

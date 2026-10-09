@@ -10,6 +10,7 @@ import '../../../../core/utils/nav_debounce.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/jbb_button.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
+import '../../../favorites/presentation/widgets/favorite_heart_button.dart';
 import '../../models/session_model.dart';
 import '../providers/session_provider.dart';
 import 'avatar_stack.dart';
@@ -97,6 +98,16 @@ class _SessionCardState extends ConsumerState<SessionCard> {
                   )
                 else
                   Container(height: 160, color: context.palette.accentTint),
+                Positioned(
+                  top: AppSizes.s10,
+                  right: AppSizes.s10,
+                  child: FavoriteHeartButton(
+                    id: session.id,
+                    type: FavoriteTargetType.session,
+                    size: 20,
+                    padding: const EdgeInsets.all(7),
+                  ),
+                ),
                 Positioned(
                   left: 0,
                   right: 0,

@@ -36,11 +36,14 @@ class SettingsRow extends StatelessWidget {
   const SettingsRow({
     super.key,
     required this.title,
-    required this.icon,
+    this.icon,
+    this.iconWidget,
     this.onTap,
     this.trailing,
   });
-  final String title, icon;
+  final String title;
+  final String? icon;
+  final Widget? iconWidget;
   final VoidCallback? onTap;
   final Widget? trailing;
   @override
@@ -55,7 +58,7 @@ class SettingsRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            IconChip(icon: icon),
+            iconWidget ?? (icon != null ? IconChip(icon: icon!) : const SizedBox.shrink()),
             const SizedBox(width: AppSizes.s12),
             Expanded(
               child: Text(

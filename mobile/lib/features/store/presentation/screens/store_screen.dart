@@ -19,6 +19,7 @@ import '../../../auth/presentation/widgets/sign_in_prompt_sheet.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../providers/store_provider.dart';
 import '../../domain/product.dart';
+import '../../../favorites/presentation/widgets/favorite_heart_button.dart';
 import 'product_editor_screen.dart';
 
 class StoreScreen extends ConsumerStatefulWidget {
@@ -102,15 +103,23 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
                         product.name ?? AppStrings.uiProduct,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: AppSizes.font16,
                         ),
                       ),
+                    ),
+                    const SizedBox(width: AppSizes.s8),
+                    FavoriteHeartButton(
+                      id: product.id,
+                      type: FavoriteTargetType.product,
+                      size: 18,
+                      padding: const EdgeInsets.all(6),
                     ),
                     if (isAdmin && product.isActive != true)
                       Padding(
@@ -245,7 +254,16 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
       isAdmin ? productsAdminProvider : productsProvider,
     );
     return Scaffold(
-      appBar: AppBar(title: Text(AppStrings.gymStore)),
+      appBar: AppBar(
+        title: Text(AppStrings.gymStore),
+        actions: [
+          IconButton(
+            tooltip: AppStrings.favorites,
+            icon: const Icon(Icons.favorite_rounded, color: Colors.redAccent),
+            onPressed: () => context.safeNavigate(AppRoutes.favorites),
+          ),
+        ],
+      ),
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
               onPressed: () => Navigator.of(
