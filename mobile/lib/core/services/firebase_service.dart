@@ -36,14 +36,18 @@ abstract final class FirebaseService {
       FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
       await FirebaseStorage.instance.useStorageEmulator(host, 9199);
     } else {
-      await FirebaseAppCheck.instance.activate(
-        providerAndroid: kDebugMode
-            ? const AndroidDebugProvider()
-            : const AndroidPlayIntegrityProvider(),
-        providerApple: kDebugMode
-            ? const AppleDebugProvider()
-            : const AppleDeviceCheckProvider(),
-      );
+      try {
+        await FirebaseAppCheck.instance.activate(
+          providerAndroid: kDebugMode
+              ? const AndroidDebugProvider()
+              : const AndroidPlayIntegrityProvider(),
+          providerApple: kDebugMode
+              ? const AppleDebugProvider()
+              : const AppleDeviceCheckProvider(),
+        ).timeout(const Duration(seconds: 4));
+      } catch (e) {
+        debugPrint('Firebase App Check activation skipped or non-fatal: $e');
+      }
       await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
         !kDebugMode,
       );

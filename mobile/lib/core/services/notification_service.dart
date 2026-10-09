@@ -63,14 +63,22 @@ class NotificationService {
             sound: true,
           );
     }
-    // FCM requires an APNs token before requesting an iOS registration token.
-    // A simulator may never receive one, but local setup and listeners can run.
-    final canGetToken =
-        defaultTargetPlatform != TargetPlatform.iOS ||
-        await FirebaseMessaging.instance.getAPNSToken() != null;
-    if (canGetToken) {
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token != null) await saveToken(token);
+    try {
+      final canGetToken =
+          defaultTargetPlatform != TargetPlatform.iOS ||
+          await FirebaseMessaging.instance.getAPNSToken().timeout(
+                const Duration(seconds: 4),
+                onTimeout: () => null,
+              ) != null;
+      if (canGetToken) {
+        final token = await FirebaseMessaging.instance.getToken().timeout(
+              const Duration(seconds: 4),
+              onTimeout: () => null,
+            );
+        if (token != null) await saveToken(token);
+      }
+    } catch (e) {
+      debugPrint('FCM/APNS token registration skipped or non-fatal: $e');
     }
     tokenSubscription = FirebaseMessaging.instance.onTokenRefresh.listen((
       token,

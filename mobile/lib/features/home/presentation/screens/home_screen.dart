@@ -5,7 +5,6 @@ import '../../../../core/resources/app_strings.dart';
 import '../../../../core/widgets/page_content.dart';
 import '../../../../core/widgets/social_links_row.dart';
 import '../../../booking/presentation/providers/booking_provider.dart';
-import '../../../membership/presentation/widgets/membership_plans_section.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../widgets/featured_products_carousel.dart';
 import '../widgets/gym_contact_footer.dart';
@@ -43,8 +42,6 @@ class HomeScreen extends ConsumerWidget {
         const HomeAdsSection(),
         const SizedBox(height: AppSizes.s20),
         const SessionsSection(),
-        const SizedBox(height: AppSizes.s20),
-        const MembershipPlansSection(),
         const SizedBox(height: AppSizes.s28),
         const GymContactFooter(),
       ],
