@@ -9,6 +9,11 @@ export type MemberSummary = {
   childName?: string;
   email?: string;
   phone?: string;
+  sessionsRemaining?: number;
+  sessionsReserved?: number;
+  privateSessionsRemaining?: number;
+  groupSessionsRemaining?: number;
+  duoSessionsRemaining?: number;
 };
 
 // In-memory cache across admin components
@@ -48,6 +53,11 @@ export async function getMemberProfile(uid: string): Promise<MemberSummary | nul
           childName: data.childName,
           email: data.email,
           phone: data.phone,
+          sessionsRemaining: data.sessionsRemaining,
+          sessionsReserved: data.sessionsReserved,
+          privateSessionsRemaining: data.privateSessionsRemaining,
+          groupSessionsRemaining: data.groupSessionsRemaining,
+          duoSessionsRemaining: data.duoSessionsRemaining,
         };
         profileCache.set(uid, profile);
         return profile;
@@ -97,6 +107,11 @@ export async function fetchMemberProfiles(uids: string[]): Promise<Record<string
               childName: data.childName,
               email: data.email,
               phone: data.phone,
+              sessionsRemaining: data.sessionsRemaining,
+              sessionsReserved: data.sessionsReserved,
+              privateSessionsRemaining: data.privateSessionsRemaining,
+              groupSessionsRemaining: data.groupSessionsRemaining,
+              duoSessionsRemaining: data.duoSessionsRemaining,
             });
           });
           for (const id of chunk) {
@@ -119,6 +134,11 @@ export async function fetchMemberProfiles(uids: string[]): Promise<Record<string
                     childName: data.childName,
                     email: data.email,
                     phone: data.phone,
+                    sessionsRemaining: data.sessionsRemaining,
+                    sessionsReserved: data.sessionsReserved,
+                    privateSessionsRemaining: data.privateSessionsRemaining,
+                    groupSessionsRemaining: data.groupSessionsRemaining,
+                    duoSessionsRemaining: data.duoSessionsRemaining,
                   });
                 } else {
                   profileCache.set(id, null);

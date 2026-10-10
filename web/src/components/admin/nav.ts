@@ -17,10 +17,10 @@ export const nav: AdminNavItem[] = [
     visible: (p) => isStaff(p),
   },
   {
-    title: 'Sessions',
-    href: '/admin/offers',
-    icon: 'local_offer',
-    visible: (p) => can(p, 'manageOffers'),
+    title: 'Members',
+    href: '/admin/members',
+    icon: 'group',
+    visible: (p) => can(p, 'manageMembers'),
   },
   {
     title: 'Bookings',
@@ -31,6 +31,22 @@ export const nav: AdminNavItem[] = [
       can(p, 'bookForMember') ||
       can(p, 'viewRevenue') ||
       can(p, 'checkIn'),
+  },
+  {
+    title: 'Sessions',
+    href: '/admin/offers',
+    icon: 'local_offer',
+    visible: (p) => can(p, 'manageOffers'),
+  },
+  {
+    title: 'Payments',
+    href: '/admin/payments',
+    icon: 'credit_card',
+    visible: (p) =>
+      can(p, 'refund') ||
+      can(p, 'viewRevenue') ||
+      can(p, 'bookForMember') ||
+      can(p, 'manageStore'),
   },
   {
     title: 'Store',
@@ -54,22 +70,6 @@ export const nav: AdminNavItem[] = [
 
 // Hidden from sidebar menu, but routes remain fully accessible via Gym Settings "More" list
 export const hiddenRoutes: AdminNavItem[] = [
-  {
-    title: 'Members',
-    href: '/admin/members',
-    icon: 'group',
-    visible: (p) => can(p, 'manageMembers'),
-  },
-  {
-    title: 'Payments',
-    href: '/admin/payments',
-    icon: 'credit_card',
-    visible: (p) =>
-      can(p, 'refund') ||
-      can(p, 'viewRevenue') ||
-      can(p, 'bookForMember') ||
-      can(p, 'manageStore'),
-  },
   {
     title: 'Announcements',
     href: '/admin/notifications',

@@ -38,6 +38,18 @@ export function MemberCell({
           {profile.phone}
         </a>
       )}
+      {profile.sessionsRemaining !== undefined && (
+        <span
+          style={{
+            fontSize: 11,
+            color: (profile.sessionsRemaining ?? 0) > 0 ? 'var(--green)' : 'var(--muted)',
+            fontWeight: 600,
+            marginTop: 2,
+          }}
+        >
+          {profile.sessionsRemaining} session{(profile.sessionsRemaining === 1) ? '' : 's'} credit{(profile.sessionsReserved ? ` (${profile.sessionsReserved} reserved)` : '')}
+        </span>
+      )}
       {!isFallback && (
         <span
           className="muted"

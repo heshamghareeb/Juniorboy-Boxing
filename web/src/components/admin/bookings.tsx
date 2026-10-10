@@ -7,8 +7,10 @@ import { formatMemberName, searchMemberUids, useMemberProfiles } from '@/lib/mem
 import { Row } from '@/lib/types';
 import { dateLabel, timeLabel, asDate, errorMessage, downloadCSV } from '@/lib/utils';
 import { Button, Notice, PageHeading, Loading, Empty, Modal } from '../ui';
-import { usePaged, Pagination, Status } from './data';
+import { Status } from './data';
+import { useRows } from '@/lib/hooks';
 import { MemberCell } from './member-cell';
+import { MemberEditor } from './members';
 
 export function AdminBookings() {
   return <ClassAdminBookings />;
@@ -21,6 +23,7 @@ function ClassAdminBookings() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<Row | null>(null);
 
   useEffect(() => {
     const trimmed = member.trim();
@@ -46,9 +49,8 @@ function ClassAdminBookings() {
   }, [member]);
 
   const targetUid = resolvedUid || (member.trim().length >= 20 ? member.trim() : '');
-  const data = usePaged(
+  const bookingsData = useRows(
     'bookings',
-    'date',
     [
       ...(status ? [where('status', '==', status)] : []),
       ...(targetUid ? [where('userId', '==', targetUid)] : []),
@@ -56,18 +58,80 @@ function ClassAdminBookings() {
     `${status}:${targetUid}`
   );
 
-  const profiles = useMemberProfiles(data.rows.map((b) => b.userId as string));
+  const paymentsData = useRows('payments', [where('status', '==', 'completed')]);
+  const usersWithCredits = useRows('users', [where('sessionsRemaining', '>', 0)]);
 
-  const displayRows = data.rows.filter((b) => {
+  // Format booking rows
+  const bookingRows: Row[] = bookingsData.rows.map((b) => ({
+    id: b.id,
+    userId: b.userId,
+    className: b.className || 'Boxing Session',
+    date: b.date,
+    endAt: b.endAt,
+    status: b.status,
+    isClassBooking: true,
+    raw: b,
+  }));
+
+  // Format completed session purchases
+  const paymentRows: Row[] = paymentsData.rows
+    .filter((p: Row) => {
+      if (p.productId && p.orderType === 'product') return false;
+      return Boolean(p.sessionId || p.credits || p.membershipPlanId || p.sessionTitle);
+    })
+    .map((p: Row) => {
+      let title = p.sessionTitle as string | undefined;
+      if (!title) {
+        if (p.credits) title = `${p.credits} Sessions Package`;
+        else if (p.productName) title = p.productName as string;
+        else title = 'Session Purchase';
+      }
+      return {
+        id: p.id,
+        userId: p.userId,
+        className: title,
+        date: p.createdAt,
+        status: 'confirmed',
+        isSessionPurchase: true,
+        raw: p,
+      };
+    });
+
+  // Format members with active session credits who don't already have a booking
+  const creditRows: Row[] = usersWithCredits.rows
+    .filter((u: Row) => {
+      const hasBooking = bookingRows.some((b) => b.userId === u.id);
+      const hasPayment = paymentRows.some((p) => p.userId === u.id);
+      return !hasBooking && !hasPayment;
+    })
+    .map((u: Row) => ({
+      id: `credit_${u.id}`,
+      userId: u.id,
+      className: `${u.sessionsRemaining} Sessions Purchased`,
+      date: u.updatedAt || u.memberSince || new Date(),
+      status: 'confirmed',
+      isCreditOnly: true,
+      raw: u,
+    }));
+
+  const allCombined = [...bookingRows, ...paymentRows, ...creditRows];
+
+  const allUids = Array.from(new Set(allCombined.map((b) => b.userId as string).filter(Boolean)));
+  const profiles = useMemberProfiles(allUids);
+
+  const displayRows = allCombined.filter((b) => {
+    if (status && b.status !== status) return false;
     const filter = member.trim().toLowerCase();
-    if (!filter || targetUid) return true;
+    if (!filter) return true;
+    if (targetUid && b.userId === targetUid) return true;
     const p = profiles[b.userId];
     const name = p ? formatMemberName(p.fullName, p.lastName, p.childName).toLowerCase() : '';
     const email = (p?.email || '').toLowerCase();
     return (
-      b.userId.toLowerCase().includes(filter) ||
+      (b.userId || '').toLowerCase().includes(filter) ||
       name.includes(filter) ||
-      email.includes(filter)
+      email.includes(filter) ||
+      (b.className || '').toLowerCase().includes(filter)
     );
   });
 
@@ -94,23 +158,37 @@ function ClassAdminBookings() {
           value={member}
           onChange={(e) => setMember(e.target.value)}
         />
-        <label className="field">
-          Status
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">All statuses</option>
-            {['confirmed', 'completed', 'cancelled', 'no-show'].map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </label>
+        <select
+          className="search-input"
+          aria-label="Filter by status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          style={{
+            width: 'auto',
+            minWidth: 160,
+            cursor: 'pointer',
+            padding: '10px 16px',
+            borderRadius: 8,
+            border: '1px solid var(--line)',
+            background: 'var(--surface)',
+            color: 'var(--text)',
+            minHeight: 46,
+          }}
+        >
+          <option value="">All statuses</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="no-show">No-show</option>
+        </select>
         <Button className="secondary" onClick={() => setExporting(true)}>
           Export CSV
         </Button>
       </div>
 
-      {(error || data.error) && <Notice error>{error || data.error}</Notice>}
+      {(error || bookingsData.error) && <Notice error>{error || bookingsData.error}</Notice>}
 
-      {data.loading ? (
+      {bookingsData.loading ? (
         <Loading />
       ) : displayRows.length ? (
         <div className="table-wrap">
@@ -133,15 +211,27 @@ function ClassAdminBookings() {
                   <td>{b.className}</td>
                   <td>
                     {dateLabel(b.date)}
-                    <br />
-                    <span className="muted">{timeLabel(b.date)} PT</span>
+                    {b.isClassBooking && (
+                      <>
+                        <br />
+                        <span className="muted">{timeLabel(b.date)} PT</span>
+                      </>
+                    )}
+                    {!b.isClassBooking && (
+                      <>
+                        <br />
+                        <span className="muted">
+                          {b.isSessionPurchase ? 'Purchased Session' : 'Active Balance'}
+                        </span>
+                      </>
+                    )}
                   </td>
                   <td>
                     <Status row={b} />
                   </td>
                   <td>
                     <div className="row">
-                      {b.status === 'confirmed' && (
+                      {b.isClassBooking && b.status === 'confirmed' && (
                         <>
                           {asDate(b.endAt) <= new Date() && (
                             <>
@@ -177,6 +267,20 @@ function ClassAdminBookings() {
                           </Button>
                         </>
                       )}
+                      {!b.isClassBooking && (
+                        <Button
+                          className="secondary small"
+                          onClick={() =>
+                            setSelectedMember(
+                              profiles[b.userId]
+                                ? { id: b.userId, ...profiles[b.userId] }
+                                : { id: b.userId }
+                            )
+                          }
+                        >
+                          View Member
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -188,8 +292,10 @@ function ClassAdminBookings() {
         <Empty>No matching bookings.</Empty>
       )}
 
-      <Pagination data={data} />
       {exporting && <ExportDialog collection="bookings" onClose={() => setExporting(false)} />}
+      {selectedMember && (
+        <MemberEditor member={selectedMember} onClose={() => setSelectedMember(null)} />
+      )}
     </>
   );
 }
