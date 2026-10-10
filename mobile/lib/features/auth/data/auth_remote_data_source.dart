@@ -108,6 +108,8 @@ class AuthRemoteDataSource {
       await auth.signInWithCredential(credential);
     }
 
+    await initializeProfile();
+
     if (fullName.isNotEmpty && auth.currentUser != null) {
       await auth.currentUser!.updateDisplayName(fullName);
       try {
@@ -122,8 +124,6 @@ class AuthRemoteDataSource {
             );
       } catch (_) {}
     }
-
-    await initializeProfile();
   }
 
   Future<void> continueAsGuest() async {

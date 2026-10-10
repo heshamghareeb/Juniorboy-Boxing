@@ -11,9 +11,12 @@ import { errorMessage, dateLabel } from '@/lib/utils';
 import { Button, Notice, PageHeading, Icon } from '../ui';
 import { useAuth } from '../providers';
 import { isSuperAdmin } from '@/lib/permissions';
+import { useLocale } from '@/lib/i18n/context';
+import type { en as EnDict } from '@/lib/i18n/dictionaries/en';
 
 export function AdminSettings() {
   const { profile } = useAuth();
+  const { t } = useLocale();
   const canEdit = isSuperAdmin(profile as any);
   const saved = useDocument('gymSettings/config');
   const settings = saved || gym;
@@ -27,7 +30,7 @@ export function AdminSettings() {
   async function uploadHero(file: File | undefined) {
     if (!file || !canEdit) return;
     if (file.size >= 5 * 1024 * 1024 || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setError('Choose a JPG, PNG or WebP smaller than 5 MB.');
+      setError(t('admin.settings.imageError'));
       return;
     }
     setBusy(true);
@@ -42,7 +45,7 @@ export function AdminSettings() {
         { heroImageUrl: url, updatedAt: serverTimestamp() },
         { merge: true }
       );
-      setMessage('Home page image updated.');
+      setMessage(t('admin.settings.heroUpdated'));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -91,7 +94,7 @@ export function AdminSettings() {
         },
         { merge: true }
       );
-      setMessage('Gym settings saved.');
+      setMessage(t('admin.settings.saved'));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -101,13 +104,13 @@ export function AdminSettings() {
 
   return (
     <>
-      <PageHeading title="Gym Settings." eyebrow="Gym profile, contacts, hours and operational settings" />
+      <PageHeading title={t('admin.settings.title')} eyebrow={t('admin.settings.eyebrow')} />
 
       {/* "More" list of links to hidden administration pages so nothing is unreachable */}
       <div className="card stack" style={{ marginBottom: 20 }}>
-        <h3 style={{ margin: 0 }}>More Administration</h3>
+        <h3 style={{ margin: 0 }}>{t('admin.settings.moreAdmin.title')}</h3>
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          Quick links to additional gym management pages and configurations:
+          {t('admin.settings.moreAdmin.subtitle')}
         </p>
         <div
           style={{
@@ -118,33 +121,32 @@ export function AdminSettings() {
           }}
         >
           <Link href="/admin/members" className="button secondary small">
-            <Icon name="group" size={16} /> Members
+            <Icon name="group" size={16} /> {t('admin.settings.links.members')}
           </Link>
           <Link href="/admin/payments" className="button secondary small">
-            <Icon name="credit_card" size={16} /> Payments
+            <Icon name="credit_card" size={16} /> {t('admin.settings.links.payments')}
           </Link>
           <Link href="/admin/notifications" className="button secondary small">
-            <Icon name="notifications" size={16} /> Announcements
+            <Icon name="notifications" size={16} /> {t('admin.settings.links.announcements')}
           </Link>
           <Link href="/admin/waiver" className="button secondary small">
-            <Icon name="assignment_turned_in" size={16} /> Waiver
+            <Icon name="assignment_turned_in" size={16} /> {t('admin.settings.links.waiver')}
           </Link>
           <Link href="/admin/legal" className="button secondary small">
-            <Icon name="gavel" size={16} /> Legal Pages
+            <Icon name="gavel" size={16} /> {t('admin.settings.links.legalPages')}
           </Link>
           {canEdit && (
             <Link href="/admin/staff" className="button secondary small">
-              <Icon name="admin_panel_settings" size={16} /> Staff
+              <Icon name="admin_panel_settings" size={16} /> {t('admin.settings.links.staff')}
             </Link>
           )}
         </div>
       </div>
 
       <div className="card stack" style={{ marginBottom: 20 }}>
-        <h3 style={{ margin: 0 }}>Home page image</h3>
+        <h3 style={{ margin: 0 }}>{t('admin.settings.heroImage.title')}</h3>
         <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-          Shown at the top of the home page (and in the mobile app). Tap the image to upload one from your
-          phone or computer.
+          {t('admin.settings.heroImage.description')}
         </p>
         <label className="photo-add" style={{ width: 140, height: 140, position: 'relative', overflow: 'hidden' }}>
           {heroImageUrl ? (
@@ -167,13 +169,13 @@ export function AdminSettings() {
       <form className="card stack" key={saved ? 'loaded' : 'default'} onSubmit={submit}>
         <div className="field-grid">
           {[
-            ['gymName', 'Gym name', 'text'],
-            ['phone', 'Phone', 'tel'],
-            ['email', 'Email', 'email'],
-            ['coachName', 'Coach', 'text'],
-          ].map(([name, label, type]) => (
+            ['gymName', 'admin.settings.field.gymName', 'text'],
+            ['phone', 'common.phone', 'tel'],
+            ['email', 'common.email', 'email'],
+            ['coachName', 'admin.settings.field.coach', 'text'],
+          ].map(([name, labelKey, type]) => (
             <label className="field" key={name}>
-              {label}
+              {t(labelKey as keyof typeof EnDict)}
               <input
                 name={name}
                 type={type}
@@ -183,7 +185,7 @@ export function AdminSettings() {
             </label>
           ))}
           <label className="field">
-            Cancellation policy · hours
+            {t('admin.settings.field.cancellationPolicy')}
             <input
               name="cancellationPolicyHours"
               type="number"
@@ -197,7 +199,7 @@ export function AdminSettings() {
 
         <div className="field-grid">
           <label className="field">
-            Gym Address (Used on map &amp; contact section)
+            {t('admin.settings.field.address')}
             <input
               name="address"
               defaultValue={(settings.address as string) || ''}
@@ -206,7 +208,7 @@ export function AdminSettings() {
             />
           </label>
           <label className="field">
-            Postal / ZIP code
+            {t('admin.settings.field.zipCode')}
             <input
               name="zipCode"
               maxLength={20}
@@ -217,31 +219,31 @@ export function AdminSettings() {
         </div>
 
         <label className="field">
-          About the gym
+          {t('admin.settings.field.aboutText')}
           <textarea name="aboutText" defaultValue={settings.aboutText || ''} />
         </label>
 
-        <h3>Operating hours</h3>
+        <h3>{t('admin.settings.hours.title')}</h3>
         <p className="muted" style={{ fontSize: 13, margin: '0 0 8px' }}>
-          Displayed in the public visit and contact sections.
+          {t('admin.settings.hours.description')}
         </p>
         <div className="field-grid">
-          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-            <label className="field" key={day} style={{ textTransform: 'capitalize' }}>
-              {day}
+          {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((day) => (
+            <label className="field" key={day}>
+              {t(`common.days.${day}` as keyof typeof EnDict)}
               <input
                 name={day}
                 defaultValue={(settings.operatingHours as Record<string, string>)?.[day] || ''}
-                placeholder="4:00 PM – 7:00 PM or Closed"
+                placeholder={t('admin.settings.hours.placeholder')}
               />
             </label>
           ))}
         </div>
 
 
-        <h3>Social links</h3>
+        <h3>{t('admin.settings.social.title')}</h3>
         <p className="muted" style={{ fontSize: 13, margin: '0 0 8px' }}>
-          Links to your gym profiles shown across the site footer and contact sections.
+          {t('admin.settings.social.description')}
         </p>
         <div className="field-grid">
           {['instagram', 'facebook', 'tiktok', 'youtube'].map((name) => (
@@ -263,7 +265,7 @@ export function AdminSettings() {
             type="checkbox"
             defaultChecked={saved?.classRemindersEnabled !== false}
           />
-          Send class reminders
+          {t('admin.settings.remindersCheckbox')}
         </label>
         <label className="check-field">
           <input
@@ -271,15 +273,15 @@ export function AdminSettings() {
             type="checkbox"
             defaultChecked={saved?.membershipAlertsEnabled !== false}
           />
-          Send membership alerts
+          {t('admin.settings.membershipAlertsCheckbox')}
         </label>
 
         {error && <Notice error>{error}</Notice>}
         {message && <Notice>{message}</Notice>}
-        {canEdit && <Button busy={busy}>Save Gym Settings</Button>}
+        {canEdit && <Button busy={busy}>{t('admin.settings.saveButton')}</Button>}
       </form>
       <p className="muted" style={{ marginTop: 24 }}>
-        Manage administrator access from Members → View / Edit → Role.
+        {t('admin.settings.manageAdminHint')}
       </p>
     </>
   );

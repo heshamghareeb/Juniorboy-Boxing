@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../providers';
 import { Icon, Loading, Notice, ActionLink } from '../ui';
+import { LocaleToggle } from '../locale-toggle';
 import { UserProfile } from '@/lib/types';
 import { adminAccess, nav } from './nav';
 
@@ -25,7 +26,10 @@ export function AdminShell({children}:{children:ReactNode}){
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
-        <Link className="wordmark" href="/">JUNIOR BOY <em>BOXING</em></Link>
+        <div className="row spread" style={{alignItems:'center'}}>
+          <Link className="wordmark" href="/">JUNIOR BOY <em>BOXING</em></Link>
+          <LocaleToggle/>
+        </div>
         <p className="eyebrow" style={{marginTop:10}}>Coach’s corner</p>
         <nav aria-label="Admin navigation">
           {nav.filter(item=>item.visible(profile)).map(item=>(

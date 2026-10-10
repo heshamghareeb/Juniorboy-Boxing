@@ -12,7 +12,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || admin());
       allow update: if active() && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'lastName', 'age', 'dateOfBirth', 'address', 'zipCode', 'phone', 'childName', 'childAge', 'avatarUrl', 'profilePicUrl', 'updatedAt', 'notificationPreferences'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'lastName', 'age', 'dateOfBirth', 'address', 'zipCode', 'phone', 'childName', 'childAge', 'avatarUrl', 'profilePicUrl', 'updatedAt', 'notificationPreferences', 'termsAccepted', 'termsAcceptedAt', 'termsVersion'])
         && request.resource.data.fullName is string && request.resource.data.fullName.size() > 0 && request.resource.data.fullName.size() <= 100
         && request.resource.data.lastName is string && request.resource.data.lastName.size() <= 100
         && request.resource.data.age is int && request.resource.data.age >= 0 && request.resource.data.age <= 120
@@ -30,6 +30,9 @@ service cloud.firestore {
         && (!('offers' in request.resource.data.notificationPreferences) || request.resource.data.notificationPreferences.offers is bool)
         && (!('reminders' in request.resource.data.notificationPreferences) || request.resource.data.notificationPreferences.reminders is bool)
         && (!('marketing' in request.resource.data.notificationPreferences) || request.resource.data.notificationPreferences.marketing is bool)
+        && (!('termsAccepted' in request.resource.data) || request.resource.data.termsAccepted is bool)
+        && (!('termsAcceptedAt' in request.resource.data) || request.resource.data.termsAcceptedAt is timestamp)
+        && (!('termsVersion' in request.resource.data) || (request.resource.data.termsVersion is string && request.resource.data.termsVersion.size() <= 20))
         && request.resource.data.updatedAt == request.time;
       match /devices/{deviceId} {
         allow read, delete: if active() && request.auth.uid == uid;

@@ -1,20 +1,25 @@
 import { DateTime } from 'luxon';
+import { getLocale } from './i18n/locale-state';
+import { en } from './i18n/dictionaries/en';
+import { ar } from './i18n/dictionaries/ar';
 export const zone = 'America/Los_Angeles';
+function dict() { return getLocale() === 'ar' ? ar : en; }
 export function asDate(value: any): Date { return value?.toDate ? value.toDate() : new Date(value); }
-export const dateLabel = (value: any) => DateTime.fromJSDate(asDate(value)).setZone(zone).toFormat('ccc, LLL d');
-export const timeLabel = (value: any) => DateTime.fromJSDate(asDate(value)).setZone(zone).toFormat('h:mm a');
-export const money = (amount: number) => new Intl.NumberFormat('en-US', {style:'currency',currency:'USD'}).format(amount / 100);
+export const dateLabel = (value: any) => DateTime.fromJSDate(asDate(value)).setZone(zone).setLocale(getLocale()==='ar'?'ar':'en').toFormat('ccc, LLL d');
+export const timeLabel = (value: any) => DateTime.fromJSDate(asDate(value)).setZone(zone).setLocale(getLocale()==='ar'?'ar':'en').toFormat('h:mm a');
+export const money = (amount: number) => new Intl.NumberFormat(getLocale()==='ar'?'ar':'en-US', {style:'currency',currency:'USD'}).format(amount / 100);
 export function errorMessage(error: unknown): string {
   const e = error as { code?: string; message?: string; details?: {message?:string}|string };
   const code = (e?.code||'').replace(/^functions\//,'');
-  if (['auth/invalid-credential','auth/wrong-password','auth/user-not-found'].includes(e?.code || '')) return 'Check your email and password.';
-  if (e?.code === 'auth/email-already-in-use') return 'This email already has an account. Please sign in.';
-  if (code === 'unauthenticated') return 'Sign in to continue.';
-  if (code === 'permission-denied') return 'You do not have permission to do that.';
-  if (code === 'failed-precondition') return (typeof e?.details==='object'?e.details?.message:undefined)||(/^internal(?:\s*\[\d+\])?$/i.test(e?.message||'')?'':e?.message)||'This action is not available yet. Please check your details and try again.';
-  if (code === 'internal' || /\binternal\s*\[\d+\]/i.test(e?.message||'')) return 'Something went wrong. Please try again.';
-  if (['unavailable','deadline-exceeded','network-request-failed','auth/network-request-failed'].includes(code)) return 'Connection unavailable. Please retry in a moment.';
-  return e?.message?.replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\.?$/,'') || 'Unable to complete this action. Please retry.';
+  const d = dict();
+  if (['auth/invalid-credential','auth/wrong-password','auth/user-not-found'].includes(e?.code || '')) return d['errors.checkCredentials'];
+  if (e?.code === 'auth/email-already-in-use') return d['errors.emailInUse'];
+  if (code === 'unauthenticated') return d['errors.signInToContinue'];
+  if (code === 'permission-denied') return d['errors.permissionDenied'];
+  if (code === 'failed-precondition') return (typeof e?.details==='object'?e.details?.message:undefined)||(/^internal(?:\s*\[\d+\])?$/i.test(e?.message||'')?'':e?.message)||d['errors.actionNotAvailable'];
+  if (code === 'internal' || /\binternal\s*\[\d+\]/i.test(e?.message||'')) return d['errors.somethingWrong'];
+  if (['unavailable','deadline-exceeded','network-request-failed','auth/network-request-failed'].includes(code)) return d['errors.connectionUnavailable'];
+  return e?.message?.replace(/^Firebase:\s*/,'').replace(/\s*\(auth\/[^)]+\)\.?$/,'') || d['errors.unableToComplete'];
 }
 export function downloadCSV(csv: string, filename: string) { const url = URL.createObjectURL(new Blob(['\ufeff',csv], {type:'text/csv;charset=utf-8;'})); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url); }
 export function isProfileComplete(profile: { childName?: string; childAge?: number; phone?: string; address?: string } | null): boolean {
@@ -25,8 +30,9 @@ export function composeAddress(data: {houseNumber?:string; streetName?:string; c
 }
 // Never surface the payment processor's name in the UI — just how the card was charged.
 export function paymentMethodLabel(method?: string): string {
-  if (method === 'stripe') return 'Card';
-  if (method === 'manual') return 'Manual';
-  if (method === 'cash') return 'Cash';
+  const d = dict();
+  if (method === 'stripe') return d['common.paymentMethod.card'];
+  if (method === 'manual') return d['common.paymentMethod.manual'];
+  if (method === 'cash') return d['common.paymentMethod.cash'];
   return method || '—';
 }
