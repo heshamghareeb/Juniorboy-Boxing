@@ -126,6 +126,64 @@ class AuthRemoteDataSource {
     }
   }
 
+  Future<void> signInWithEmail(String email, String password) async {
+    final cleanEmail = email.trim();
+    if (auth.currentUser?.isAnonymous == true) {
+      final credential = EmailAuthProvider.credential(
+        email: cleanEmail,
+        password: password,
+      );
+      try {
+        await auth.currentUser!.linkWithCredential(credential);
+      } on FirebaseAuthException catch (error) {
+        if (error.code != 'credential-already-in-use') rethrow;
+        await auth.signInWithEmailAndPassword(
+          email: cleanEmail,
+          password: password,
+        );
+      }
+    } else {
+      await auth.signInWithEmailAndPassword(
+        email: cleanEmail,
+        password: password,
+      );
+    }
+    await initializeProfile();
+  }
+
+  Future<void> signUpWithEmail(
+    String email,
+    String password, {
+    String? fullName,
+  }) async {
+    final cleanEmail = email.trim();
+    final cleanName = fullName?.trim() ?? '';
+    final credential = await auth.createUserWithEmailAndPassword(
+      email: cleanEmail,
+      password: password,
+    );
+    if (cleanName.isNotEmpty && credential.user != null) {
+      await credential.user!.updateDisplayName(cleanName);
+      try {
+        await FirebaseFirestore.instance
+            .doc('users/${credential.user!.uid}')
+            .set(
+              {
+                'fullName': cleanName,
+                'email': cleanEmail,
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true),
+            );
+      } catch (_) {}
+    }
+    await initializeProfile();
+  }
+
+  Future<void> sendPasswordReset(String email) async {
+    await auth.sendPasswordResetEmail(email: email.trim());
+  }
+
   Future<void> continueAsGuest() async {
     await auth.signInAnonymously();
     await initializeProfile();

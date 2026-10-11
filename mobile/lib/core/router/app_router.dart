@@ -46,7 +46,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (user == null && !isAuth) return AppRoutes.welcome;
       final signedIn = user != null &&
           !user.isAnonymous &&
-          (user.hasGoogleProvider || user.hasAppleProvider);
+          (user.hasGoogleProvider ||
+              user.hasAppleProvider ||
+              user.hasEmailProvider);
       if (signedIn &&
           ![
             AppRoutes.completeProfile,

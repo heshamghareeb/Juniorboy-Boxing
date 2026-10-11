@@ -9,19 +9,9 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../providers/auth_provider.dart';
+import 'email_auth_sheet.dart';
 
 Future<bool> showSignInPrompt(BuildContext context, WidgetRef ref) async {
-  final isApple = defaultTargetPlatform == TargetPlatform.iOS;
-  if (!isApple) {
-    try {
-      await ref.read(authRepositoryProvider).googleSignIn();
-      return ref.read(authRepositoryProvider).currentUser?.isAnonymous == false;
-    } catch (e) {
-      if (context.mounted) showMessage(context, friendlyError(e));
-      return false;
-    }
-  }
-
   return await showModalBottomSheet<bool>(
         context: context,
         useRootNavigator: true,
@@ -108,33 +98,35 @@ class _SignInSheetState extends State<_SignInSheet> {
               ),
             ),
             SizedBox(height: AppSizes.s24),
-            // Sign in with Apple
-            SizedBox(
-              height: AppSizes.buttonHeight,
-              child: busy
-                  ? Center(
-                      child: SizedBox(
-                        width: AppSizes.s20,
-                        height: AppSizes.s20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: AppSizes.s2,
-                          color: context.palette.accent,
+            // Sign in with Apple (iOS only)
+            if (defaultTargetPlatform == TargetPlatform.iOS) ...[
+              SizedBox(
+                height: AppSizes.buttonHeight,
+                child: busy
+                    ? Center(
+                        child: SizedBox(
+                          width: AppSizes.s20,
+                          height: AppSizes.s20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: AppSizes.s2,
+                            color: context.palette.accent,
+                          ),
                         ),
+                      )
+                    : SignInWithAppleButton(
+                        onPressed: () => _handle(
+                          widget.ref.read(authRepositoryProvider).appleSignIn,
+                        ),
+                        text: AppStrings.uiContinueWithApple,
+                        height: AppSizes.buttonHeight,
+                        style: isDark
+                            ? SignInWithAppleButtonStyle.white
+                            : SignInWithAppleButtonStyle.black,
+                        borderRadius: BorderRadius.circular(AppSizes.radius12),
                       ),
-                    )
-                  : SignInWithAppleButton(
-                      onPressed: () => _handle(
-                        widget.ref.read(authRepositoryProvider).appleSignIn,
-                      ),
-                      text: AppStrings.uiContinueWithApple,
-                      height: AppSizes.buttonHeight,
-                      style: isDark
-                          ? SignInWithAppleButtonStyle.white
-                          : SignInWithAppleButtonStyle.black,
-                      borderRadius: BorderRadius.circular(AppSizes.radius12),
-                    ),
-            ),
-            SizedBox(height: AppSizes.s12),
+              ),
+              SizedBox(height: AppSizes.s12),
+            ],
             // Sign in with Google
             SizedBox(
               height: AppSizes.buttonHeight,
@@ -154,6 +146,34 @@ class _SignInSheetState extends State<_SignInSheet> {
                 icon: AppIcon(AppIcons.logIn),
                 label: Text(
                   AppStrings.uiContinueWithGoogle,
+                  style: TextStyle(
+                    fontSize: AppSizes.font17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: AppSizes.s12),
+            // Sign in with Email
+            SizedBox(
+              height: AppSizes.buttonHeight,
+              child: OutlinedButton.icon(
+                onPressed: busy
+                    ? null
+                    : () async {
+                        Navigator.of(context).pop();
+                        await EmailAuthSheet.show(context);
+                      },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: context.palette.textPrimary,
+                  side: BorderSide(color: context.palette.textSecondary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSizes.radius12),
+                  ),
+                ),
+                icon: AppIcon(AppIcons.mail),
+                label: Text(
+                  AppStrings.uiContinueWithEmail,
                   style: TextStyle(
                     fontSize: AppSizes.font17,
                     fontWeight: FontWeight.bold,

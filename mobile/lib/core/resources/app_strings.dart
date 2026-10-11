@@ -360,6 +360,7 @@ abstract final class AppStrings {
   static const uiBoxingClass = 'Boxing class';
   static const uiContinueWithApple = 'Continue with Apple';
   static const uiContinueWithGoogle = 'Continue with Google';
+  static const uiContinueWithEmail = 'Continue with Email';
   static const uiSignInToContinue = 'Sign in to continue';
   static const uiSignInPromptSubtitle =
       'Connect your account to save your memberships and orders.';

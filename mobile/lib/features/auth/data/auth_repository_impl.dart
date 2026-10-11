@@ -20,6 +20,9 @@ class AuthRepositoryImpl implements AuthRepository {
           hasAppleProvider: user.providerData.any(
             (provider) => provider.providerId == 'apple.com',
           ),
+          hasEmailProvider: user.providerData.any(
+            (provider) => provider.providerId == 'password',
+          ),
         );
 
   @override
@@ -33,6 +36,22 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> appleSignIn() => source.appleSignIn();
+
+  @override
+  Future<void> signInWithEmail(String email, String password) =>
+      source.signInWithEmail(email, password);
+
+  @override
+  Future<void> signUpWithEmail(
+    String email,
+    String password, {
+    String? fullName,
+  }) =>
+      source.signUpWithEmail(email, password, fullName: fullName);
+
+  @override
+  Future<void> sendPasswordReset(String email) =>
+      source.sendPasswordReset(email);
 
   @override
   Future<void> continueAsGuest() => source.continueAsGuest();

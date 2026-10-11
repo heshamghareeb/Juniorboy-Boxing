@@ -11,6 +11,7 @@ import '../../../../core/router/app_routes.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/email_auth_sheet.dart';
 
 /// Entry screen: brand mark, Apple / Google sign-in buttons, and a Skip button
 /// (continue as guest).
@@ -133,6 +134,30 @@ class _WelcomeState extends ConsumerState<WelcomeScreen> {
                       : AppIcon(AppIcons.logIn),
                   label: Text(
                     AppStrings.uiContinueWithGoogle,
+                    style: TextStyle(
+                      fontSize: AppSizes.font17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: AppSizes.s12),
+              // Email sign-in button
+              SizedBox(
+                width: double.infinity,
+                height: AppSizes.buttonHeight,
+                child: OutlinedButton.icon(
+                  onPressed: isAnyBusy ? null : () => EmailAuthSheet.show(context),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: context.palette.textPrimary,
+                    side: BorderSide(color: context.palette.textSecondary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSizes.radius12),
+                    ),
+                  ),
+                  icon: AppIcon(AppIcons.mail),
+                  label: Text(
+                    AppStrings.uiContinueWithEmail,
                     style: TextStyle(
                       fontSize: AppSizes.font17,
                       fontWeight: FontWeight.bold,
