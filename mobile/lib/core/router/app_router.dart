@@ -5,6 +5,7 @@ import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
 import '../../features/admin/presentation/screens/ad_editor_screen.dart';
 import '../../features/sessions/presentation/screens/session_editor_screen.dart';
 import '../../features/sessions/presentation/screens/session_members_screen.dart';
+import '../../features/sessions/presentation/screens/session_detail_screen.dart';
 import '../../features/blog/presentation/screens/blog_screen.dart';
 import '../../features/home/domain/home_ad.dart';
 import '../../features/sessions/models/session_model.dart';
@@ -165,6 +166,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.sessionMembers,
         builder: (c, s) => SessionMembersScreen(session: s.extra as SessionModel),
+      ),
+      GoRoute(
+        path: AppRoutes.sessionDetail,
+        builder: (c, s) => SessionDetailScreen(session: s.extra as SessionModel),
       ),
       GoRoute(path: AppRoutes.blog, builder: (c, s) => const BlogScreen()),
       GoRoute(

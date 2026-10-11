@@ -47,6 +47,7 @@ abstract final class AppSizes {
   static const font18 = 18.0;
   static const font20 = 20.0;
   static const font22 = 22.0;
+  static const font24 = 24.0;
   static const font28 = 28.0;
   static const font32 = 32.0;
   static const iconChip = 30.0;

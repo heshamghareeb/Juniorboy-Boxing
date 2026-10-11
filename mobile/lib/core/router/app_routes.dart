@@ -15,6 +15,7 @@ abstract final class AppRoutes {
   static const adminAdEditor = '/admin/ad-editor';
   static const adminSessionEditor = '/admin/session-editor';
   static const sessionMembers = '/session-members';
+  static const sessionDetail = '/session-detail';
   static const blog = '/blog';
   static const contact = '/contact';
   static const about = '/about';
