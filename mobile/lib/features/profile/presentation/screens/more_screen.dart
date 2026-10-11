@@ -17,6 +17,7 @@ import '../../../../core/widgets/page_content.dart';
 import '../../../../core/widgets/settings_group.dart';
 import '../../../../core/widgets/social_links_row.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/widgets/sign_in_prompt_sheet.dart';
 import '../../../favorites/presentation/providers/favorites_provider.dart';
 import '../providers/profile_provider.dart';
 
@@ -24,7 +25,9 @@ class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authUser = ref.watch(authProvider).value;
     final user = ref.watch(profileProvider).value;
+    final isGuest = authUser == null;
     final themeMode = ref.watch(themeModeProvider);
     final favCount = ref.watch(totalFavoritesCountProvider);
     return PageContent(
@@ -36,10 +39,10 @@ class MoreScreen extends ConsumerWidget {
               CircleAvatar(
                 radius: AppSizes.avatarRadiusLarge,
                 backgroundColor: context.palette.accentTint,
-                backgroundImage: (user?.avatarUrl ?? '').isNotEmpty
+                backgroundImage: (!isGuest && (user?.avatarUrl ?? '').isNotEmpty)
                     ? CachedNetworkImageProvider(user!.avatarUrl!)
                     : null,
-                child: (user?.avatarUrl ?? '').isEmpty
+                child: (isGuest || (user?.avatarUrl ?? '').isEmpty)
                     ? AppIcon(AppIcons.user, color: context.palette.accent)
                     : null,
               ),
@@ -49,18 +52,29 @@ class MoreScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      (user?.childName.isNotEmpty ?? false)
-                          ? user!.childName
-                          : (user?.fullName ?? AppStrings.uiMember),
+                      !isGuest
+                          ? ((user?.childName.isNotEmpty ?? false)
+                              ? user!.childName
+                              : (user?.fullName ?? AppStrings.uiMember))
+                          : 'Guest',
                       style: TextStyle(
                         fontSize: AppSizes.font20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (user != null &&
+                    if (!isGuest &&
+                        user != null &&
                         user.memberSince.millisecondsSinceEpoch > 0)
                       Text(
                         'Member since ${dateLabel(readDate(user.memberSince))}',
+                        style: TextStyle(
+                          fontSize: AppSizes.font12,
+                          color: context.palette.textSecondary,
+                        ),
+                      )
+                    else if (isGuest)
+                      Text(
+                        'Sign in to book sessions & memberships',
                         style: TextStyle(
                           fontSize: AppSizes.font12,
                           color: context.palette.textSecondary,
@@ -69,6 +83,17 @@ class MoreScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              if (isGuest)
+                TextButton(
+                  onPressed: () => showSignInPrompt(context, ref),
+                  child: Text(
+                    'Sign In',
+                    style: TextStyle(
+                      color: context.palette.accent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -202,32 +227,58 @@ class MoreScreen extends ConsumerWidget {
             ),
           ],
         ),
-        SizedBox(height: AppSizes.s20),
-        OutlinedButton(
-          onPressed: () async {
-            try {
-              if (context.mounted) context.go(AppRoutes.welcome);
-              await ref.read(authRepositoryProvider).signOut();
-            } catch (e) {
-              if (context.mounted) showMessage(context, friendlyError(e));
-            }
-          },
-          child: Text(
-            AppStrings.signOut,
-            style: TextStyle(color: context.palette.accent),
-          ),
-        ),
-        SizedBox(height: AppSizes.s8),
-        TextButton(
-          onPressed: () => _confirmDeleteAccount(context, ref),
-          child: Text(
-            AppStrings.uiDeleteAccount,
-            style: TextStyle(
-              color: context.palette.textSecondary,
-              fontSize: AppSizes.font13,
+        if (!isGuest) ...[
+          SizedBox(height: AppSizes.s20),
+          OutlinedButton(
+            onPressed: () async {
+              try {
+                if (context.mounted) context.go(AppRoutes.welcome);
+                await ref.read(authRepositoryProvider).signOut();
+                await ref.read(guestModeProvider.notifier).setGuest(false);
+              } catch (e) {
+                if (context.mounted) showMessage(context, friendlyError(e));
+              }
+            },
+            child: Text(
+              AppStrings.signOut,
+              style: TextStyle(color: context.palette.accent),
             ),
           ),
-        ),
+          SizedBox(height: AppSizes.s8),
+          TextButton(
+            onPressed: () => _confirmDeleteAccount(context, ref),
+            child: Text(
+              AppStrings.uiDeleteAccount,
+              style: TextStyle(
+                color: context.palette.textSecondary,
+                fontSize: AppSizes.font13,
+              ),
+            ),
+          ),
+        ] else ...[
+          SizedBox(height: AppSizes.s20),
+          SizedBox(
+            width: double.infinity,
+            height: AppSizes.buttonHeight,
+            child: ElevatedButton(
+              onPressed: () => showSignInPrompt(context, ref),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: context.palette.accent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSizes.radius12),
+                ),
+              ),
+              child: const Text(
+                'Sign In / Create Account',
+                style: TextStyle(
+                  fontSize: AppSizes.font16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

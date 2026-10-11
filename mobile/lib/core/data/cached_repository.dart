@@ -15,7 +15,7 @@ bool _isPermissionDenied(Object? error) {
 
 abstract class CachedRepository {
   FirebaseFirestore get db => FirebaseFirestore.instance;
-  String get uid => FirebaseAuth.instance.currentUser!.uid;
+  String get uid => FirebaseAuth.instance.currentUser?.uid ?? '';
   Box get cache => Hive.box('jbb_cache');
   dynamic normalize(dynamic value) {
     if (value is Timestamp) return value.toDate().toIso8601String();

@@ -43,8 +43,11 @@ class _SignInSheetState extends State<_SignInSheet> {
     try {
       await action();
       final user = widget.ref.read(authRepositoryProvider).currentUser;
+      if (user != null) {
+        await widget.ref.read(guestModeProvider.notifier).setGuest(false);
+      }
       if (mounted) {
-        Navigator.of(context).pop(user != null && !user.isAnonymous);
+        Navigator.of(context).pop(user != null);
       }
     } catch (e) {
       if (mounted) showMessage(context, friendlyError(e));

@@ -29,7 +29,7 @@ class _WelcomeState extends ConsumerState<WelcomeScreen> {
   Future<void> skip() async {
     setState(() => busy = true);
     try {
-      await ref.read(authRepositoryProvider).continueAsGuest();
+      await ref.read(guestModeProvider.notifier).setGuest(true);
       if (mounted) context.go(AppRoutes.home);
     } catch (e) {
       if (mounted) showMessage(context, friendlyError(e));
@@ -42,6 +42,7 @@ class _WelcomeState extends ConsumerState<WelcomeScreen> {
     setState(() => googleBusy = true);
     try {
       await ref.read(authRepositoryProvider).googleSignIn();
+      await ref.read(guestModeProvider.notifier).setGuest(false);
       if (mounted) context.go(AppRoutes.home);
     } catch (e) {
       if (mounted) showMessage(context, friendlyError(e));
@@ -54,6 +55,7 @@ class _WelcomeState extends ConsumerState<WelcomeScreen> {
     setState(() => appleBusy = true);
     try {
       await ref.read(authRepositoryProvider).appleSignIn();
+      await ref.read(guestModeProvider.notifier).setGuest(false);
       if (mounted) context.go(AppRoutes.home);
     } catch (e) {
       if (mounted) showMessage(context, friendlyError(e));

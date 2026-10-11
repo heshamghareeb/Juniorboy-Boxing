@@ -32,6 +32,9 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthAccount? get currentUser => _account(source.currentUser);
 
   @override
+  bool get isGuest => source.isGuest;
+
+  @override
   Future<void> googleSignIn() => source.googleSignIn();
 
   @override

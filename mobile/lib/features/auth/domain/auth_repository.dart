@@ -3,6 +3,7 @@ import 'auth_account.dart';
 abstract class AuthRepository {
   Stream<AuthAccount?> userChanges();
   AuthAccount? get currentUser;
+  bool get isGuest;
   Future<void> googleSignIn();
   Future<void> appleSignIn();
   Future<void> signInWithEmail(String email, String password);

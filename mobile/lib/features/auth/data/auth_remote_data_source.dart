@@ -45,13 +45,12 @@ class AuthRemoteDataSource {
     );
     if (auth.currentUser?.isAnonymous == true) {
       try {
-        await auth.currentUser!.linkWithCredential(credential);
-      } on FirebaseAuthException catch (error) {
-        if (error.code != 'credential-already-in-use') rethrow;
-        await auth.signInWithCredential(credential);
-      }
-    } else {
-      await auth.signInWithCredential(credential);
+        await auth.currentUser?.delete();
+      } catch (_) {}
+    }
+    await auth.signInWithCredential(credential);
+    if (Hive.isBoxOpen('jbb_cache')) {
+      await Hive.box('jbb_cache').delete('is_guest_mode');
     }
     await initializeProfile();
   }
@@ -99,13 +98,12 @@ class AuthRemoteDataSource {
 
     if (auth.currentUser?.isAnonymous == true) {
       try {
-        await auth.currentUser!.linkWithCredential(credential);
-      } on FirebaseAuthException catch (error) {
-        if (error.code != 'credential-already-in-use') rethrow;
-        await auth.signInWithCredential(credential);
-      }
-    } else {
-      await auth.signInWithCredential(credential);
+        await auth.currentUser?.delete();
+      } catch (_) {}
+    }
+    await auth.signInWithCredential(credential);
+    if (Hive.isBoxOpen('jbb_cache')) {
+      await Hive.box('jbb_cache').delete('is_guest_mode');
     }
 
     await initializeProfile();
@@ -129,24 +127,16 @@ class AuthRemoteDataSource {
   Future<void> signInWithEmail(String email, String password) async {
     final cleanEmail = email.trim();
     if (auth.currentUser?.isAnonymous == true) {
-      final credential = EmailAuthProvider.credential(
-        email: cleanEmail,
-        password: password,
-      );
       try {
-        await auth.currentUser!.linkWithCredential(credential);
-      } on FirebaseAuthException catch (error) {
-        if (error.code != 'credential-already-in-use') rethrow;
-        await auth.signInWithEmailAndPassword(
-          email: cleanEmail,
-          password: password,
-        );
-      }
-    } else {
-      await auth.signInWithEmailAndPassword(
-        email: cleanEmail,
-        password: password,
-      );
+        await auth.currentUser?.delete();
+      } catch (_) {}
+    }
+    await auth.signInWithEmailAndPassword(
+      email: cleanEmail,
+      password: password,
+    );
+    if (Hive.isBoxOpen('jbb_cache')) {
+      await Hive.box('jbb_cache').delete('is_guest_mode');
     }
     await initializeProfile();
   }
@@ -158,10 +148,18 @@ class AuthRemoteDataSource {
   }) async {
     final cleanEmail = email.trim();
     final cleanName = fullName?.trim() ?? '';
+    if (auth.currentUser?.isAnonymous == true) {
+      try {
+        await auth.currentUser?.delete();
+      } catch (_) {}
+    }
     final credential = await auth.createUserWithEmailAndPassword(
       email: cleanEmail,
       password: password,
     );
+    if (Hive.isBoxOpen('jbb_cache')) {
+      await Hive.box('jbb_cache').delete('is_guest_mode');
+    }
     if (cleanName.isNotEmpty && credential.user != null) {
       await credential.user!.updateDisplayName(cleanName);
       try {
@@ -184,9 +182,28 @@ class AuthRemoteDataSource {
     await auth.sendPasswordResetEmail(email: email.trim());
   }
 
+  bool get isGuest {
+    try {
+      if (!Hive.isBoxOpen('jbb_cache')) return false;
+      return Hive.box('jbb_cache').get('is_guest_mode', defaultValue: false) ==
+              true &&
+          auth.currentUser == null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> continueAsGuest() async {
-    await auth.signInAnonymously();
-    await initializeProfile();
+    if (auth.currentUser?.isAnonymous == true) {
+      try {
+        await auth.currentUser?.delete();
+      } catch (_) {
+        await auth.signOut();
+      }
+    }
+    if (Hive.isBoxOpen('jbb_cache')) {
+      await Hive.box('jbb_cache').put('is_guest_mode', true);
+    }
   }
 
   Future<void> signOut() async {
@@ -198,8 +215,15 @@ class AuthRemoteDataSource {
     try {
       await _googleSignIn.signOut();
     } catch (_) {}
+    if (auth.currentUser?.isAnonymous == true) {
+      try {
+        await auth.currentUser?.delete();
+      } catch (_) {}
+    }
     await auth.signOut();
-    await Hive.box('jbb_cache').clear();
+    if (Hive.isBoxOpen('jbb_cache')) {
+      await Hive.box('jbb_cache').clear();
+    }
   }
 
   Future<void> deleteAccount() async {

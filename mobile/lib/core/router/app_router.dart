@@ -33,19 +33,21 @@ import 'app_shell.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen(authProvider, (_, next) => refresh.value++);
+  ref.listen(guestModeProvider, (_, next) => refresh.value++);
   ref.listen(profileProvider, (_, next) => refresh.value++);
   final router = GoRouter(
     initialLocation: AppRoutes.home,
     refreshListenable: refresh,
     redirect: (context, state) {
       final auth = ref.read(authProvider);
+      final isGuest = ref.read(guestModeProvider);
       final profile = ref.read(profileProvider);
       final isAuth = state.uri.path == AppRoutes.welcome;
       if (auth.isLoading) return null;
       final user = auth.value;
-      if (user == null && !isAuth) return AppRoutes.welcome;
+      if (user == null && !isGuest && !isAuth) return AppRoutes.welcome;
+      if (user != null && isAuth) return AppRoutes.home;
       final signedIn = user != null &&
-          !user.isAnonymous &&
           (user.hasGoogleProvider ||
               user.hasAppleProvider ||
               user.hasEmailProvider);

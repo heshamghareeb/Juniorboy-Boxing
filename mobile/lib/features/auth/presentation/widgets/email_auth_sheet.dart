@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/resources/app_sizes.dart';
-import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/utils/validators.dart';
@@ -63,9 +61,9 @@ class _EmailAuthSheetState extends ConsumerState<EmailAuthSheet> {
               _passwordController.text,
             );
       }
+      await ref.read(guestModeProvider.notifier).setGuest(false);
       if (mounted) {
         Navigator.of(context).pop();
-        context.go(AppRoutes.home);
       }
     } catch (e) {
       if (mounted) showMessage(context, friendlyError(e));
