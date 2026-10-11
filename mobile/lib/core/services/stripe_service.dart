@@ -82,7 +82,7 @@ class StripeService {
     return 'Payment submitted. Check Payments for confirmation; do not pay again while pending.';
   }
 
-  Future<String> joinSession(String sessionId) async {
+  Future<String> joinSession(String sessionId, {String? timeSlot}) async {
     const configuredKey = String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
     final settings = await FirebaseFirestore.instance
         .doc('gymSettings/config')
@@ -94,11 +94,11 @@ class StripeService {
       throw const FormatException(
         'Card payments are not configured yet. Contact the gym to join this session.',
       );
-}
+    }
     Stripe.publishableKey = key;
     await Stripe.instance.applySettings();
     final uid = FirebaseAuth.instance.currentUser!.uid;
-    final attemptKey = 'checkout_session:$uid:$sessionId', box = Hive.box('jbb_device');
+    final attemptKey = 'checkout_session:$uid:$sessionId${timeSlot != null ? ':$timeSlot' : ''}', box = Hive.box('jbb_device');
     final requestId = box.get(attemptKey) as String? ?? const Uuid().v4();
     await box.put(attemptKey, requestId);
     dynamic data;
@@ -106,7 +106,11 @@ class StripeService {
       data =
           (await FirebaseFunctions.instance
                   .httpsCallable('joinSession')
-                  .call({'sessionId': sessionId, 'requestId': requestId}))
+                  .call({
+                    'sessionId': sessionId,
+                    'requestId': requestId,
+                    if (timeSlot != null && timeSlot.isNotEmpty) 'timeSlot': timeSlot,
+                  }))
               .data;
     } on FirebaseFunctionsException catch (e) {
       if (e.details is Map && e.details['reason'] == 'checkout-expired') {

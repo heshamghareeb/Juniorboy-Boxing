@@ -760,7 +760,7 @@ class _JoinedSessionCard extends StatelessWidget {
               ),
               const SizedBox(height: AppSizes.s6),
               Text(
-                '${dateLabel(session.startDate)} – ${dateLabel(session.endDate)} · ${session.startTime}–${session.endTime}',
+                '${dateLabel(session.startDate)} – ${dateLabel(session.endDate)} · ${session.formattedTimes.isNotEmpty ? session.formattedTimes : '${session.startTime}–${session.endTime}'}',
                 style: TextStyle(
                   color: context.palette.textSecondary,
                   fontSize: AppSizes.font13,

@@ -347,54 +347,59 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
               final slot = timeSlots[index];
               return Container(
                 margin: const EdgeInsets.only(bottom: AppSizes.s12),
-                padding: const EdgeInsets.all(AppSizes.s12),
                 decoration: BoxDecoration(
-                  color: context.palette.surface,
                   borderRadius: BorderRadius.circular(AppSizes.radius8),
                   border: Border.all(color: context.palette.separator),
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Material(
+                  color: context.palette.surface,
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSizes.s12),
+                    child: Column(
                       children: [
-                        Text(
-                          'Time ${index + 1}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: AppSizes.font12,
-                            color: context.palette.accent,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Time ${index + 1}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: AppSizes.font12,
+                                color: context.palette.accent,
+                              ),
+                            ),
+                            if (timeSlots.length > 1)
+                              IconButton(
+                                icon: const AppIcon(AppIcons.trash, size: 16),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => setState(() => timeSlots.removeAt(index)),
+                              ),
+                          ],
                         ),
-                        if (timeSlots.length > 1)
-                          IconButton(
-                            icon: const AppIcon(AppIcons.trash, size: 16),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: () => setState(() => timeSlots.removeAt(index)),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text(AppStrings.startTime),
+                          subtitle: Text(
+                            slot.startTime == null ? AppStrings.uiPickDate : _fmtTime(slot.startTime!),
                           ),
+                          trailing: const AppIcon(AppIcons.clock),
+                          onTap: () => pickSlotTime(index: index, isStart: true),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text(AppStrings.endTime),
+                          subtitle: Text(
+                            slot.endTime == null ? AppStrings.chooseEndTime : _fmtTime(slot.endTime!),
+                          ),
+                          trailing: const AppIcon(AppIcons.clock),
+                          onTap: () => pickSlotTime(index: index, isStart: false),
+                        ),
                       ],
                     ),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text(AppStrings.startTime),
-                      subtitle: Text(
-                        slot.startTime == null ? AppStrings.uiPickDate : _fmtTime(slot.startTime!),
-                      ),
-                      trailing: const AppIcon(AppIcons.clock),
-                      onTap: () => pickSlotTime(index: index, isStart: true),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text(AppStrings.endTime),
-                      subtitle: Text(
-                        slot.endTime == null ? AppStrings.chooseEndTime : _fmtTime(slot.endTime!),
-                      ),
-                      trailing: const AppIcon(AppIcons.clock),
-                      onTap: () => pickSlotTime(index: index, isStart: false),
-                    ),
-                  ],
+                  ),
                 ),
               );
             }),

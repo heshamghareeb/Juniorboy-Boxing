@@ -68,7 +68,9 @@ class SessionMembersScreen extends ConsumerWidget {
                   ),
                   _InfoChip(
                     icon: AppIcons.clock,
-                    label: '${session.startTime}–${session.endTime}',
+                    label: session.formattedTimes.isNotEmpty
+                        ? session.formattedTimes
+                        : '${session.startTime}–${session.endTime}',
                   ),
                 ],
               ),

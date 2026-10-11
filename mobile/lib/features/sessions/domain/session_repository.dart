@@ -10,5 +10,5 @@ abstract class SessionRepository {
   Future<void> delete(String id);
   Future<String> uploadImage(String id, File file);
   Future<List<UserModel>> fetchMembers(String sessionId);
-  Future<String> join(String sessionId);
+  Future<String> join(String sessionId, {String? timeSlot});
 }

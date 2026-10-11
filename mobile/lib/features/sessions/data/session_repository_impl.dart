@@ -36,5 +36,6 @@ class SessionRepositoryImpl implements SessionRepository {
   }
 
   @override
-  Future<String> join(String sessionId) => stripe.joinSession(sessionId);
+  Future<String> join(String sessionId, {String? timeSlot}) =>
+      stripe.joinSession(sessionId, timeSlot: timeSlot);
 }
