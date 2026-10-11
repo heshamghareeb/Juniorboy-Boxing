@@ -12,6 +12,7 @@ import '../../../../core/utils/address_utils.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/jbb_button.dart';
+import '../../../auth/presentation/widgets/sign_in_prompt_sheet.dart';
 import '../providers/profile_provider.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -78,7 +79,49 @@ class _EditState extends ConsumerState<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(profileProvider).value;
-    if (!loaded && user != null) {
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text(AppStrings.editProfile)),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSizes.s24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppIcon(
+                  AppIcons.user,
+                  size: AppSizes.s56,
+                  color: context.palette.accent,
+                ),
+                const SizedBox(height: AppSizes.s16),
+                Text(
+                  AppStrings.uiSignInToContinue,
+                  style: TextStyle(
+                    fontSize: AppSizes.font20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.s8),
+                Text(
+                  'Sign in to view and edit your profile details.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: AppSizes.font14,
+                    color: context.palette.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: AppSizes.s20),
+                JbbButton(
+                  label: 'Sign In',
+                  onPressed: () => showSignInPrompt(context, ref),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    if (!loaded) {
       final address = StructuredAddress.parse(user.address);
       final values = [
         user.childName,
@@ -111,10 +154,10 @@ class _EditState extends ConsumerState<EditProfileScreen> {
                     CircleAvatar(
                       radius: AppSizes.avatarRadiusProfile,
                       backgroundColor: context.palette.accentTint,
-                      backgroundImage: (user?.avatarUrl ?? '').isNotEmpty
-                          ? CachedNetworkImageProvider(user!.avatarUrl!)
+                      backgroundImage: (user.avatarUrl ?? '').isNotEmpty
+                          ? CachedNetworkImageProvider(user.avatarUrl!)
                           : null,
-                      child: (user?.avatarUrl ?? '').isEmpty
+                      child: (user.avatarUrl ?? '').isEmpty
                           ? AppIcon(
                               AppIcons.user,
                               size: AppSizes.s40,
@@ -187,13 +230,13 @@ class _EditState extends ConsumerState<EditProfileScreen> {
               ),
               SwitchListTile(
                 title: const Text(AppStrings.pushNotifications),
-                value: user?.pushNotifications ?? true,
+                value: user.pushNotifications,
                 onChanged: (v) async {
                   try {
                     await ref.read(userRepositoryProvider).save({
                       'notificationPreferences': {
                         'push': v,
-                        'email': user?.emailNotifications ?? true,
+                        'email': user.emailNotifications,
                       },
                     });
                   } catch (e) {
@@ -203,13 +246,13 @@ class _EditState extends ConsumerState<EditProfileScreen> {
               ),
               SwitchListTile(
                 title: const Text(AppStrings.emailNotifications),
-                value: user?.emailNotifications ?? true,
+                value: user.emailNotifications,
                 onChanged: (v) async {
                   try {
                     await ref.read(userRepositoryProvider).save({
                       'notificationPreferences': {
                         'email': v,
-                        'push': user?.pushNotifications ?? true,
+                        'push': user.pushNotifications,
                       },
                     });
                   } catch (e) {
@@ -219,7 +262,7 @@ class _EditState extends ConsumerState<EditProfileScreen> {
               ),
               const SizedBox(height: AppSizes.s16),
               TextFormField(
-                initialValue: user?.email ?? '',
+                initialValue: user.email,
                 enabled: false,
                 decoration: const InputDecoration(labelText: AppStrings.uiEmail),
               ),

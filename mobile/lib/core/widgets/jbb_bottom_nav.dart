@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/auth/presentation/widgets/sign_in_prompt_sheet.dart';
 import '../../features/profile/presentation/providers/profile_provider.dart';
 import '../resources/app_icons.dart';
 import '../resources/app_sizes.dart';
@@ -15,6 +17,10 @@ class JbbBottomNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(profileProvider).value?.role;
     final isAdmin = role == 'admin' || role == 'superAdmin';
+    final authUser = ref.watch(authProvider).value;
+    final isGuest = ref.watch(guestModeProvider) ||
+        authUser == null ||
+        authUser.isAnonymous;
     final items = [
       (AppStrings.navMore, AppIcons.navMore),
       (AppStrings.myBookings, AppIcons.navLog),
@@ -41,10 +47,26 @@ class JbbBottomNav extends ConsumerWidget {
               for (var index = 0; index < items.length; index++)
                 Expanded(
                   child: InkWell(
-                    onTap: () => navigationShell.goBranch(
-                      index,
-                      initialLocation: index == navigationShell.currentIndex,
-                    ),
+                    onTap: () async {
+                      final isRestrictedTab =
+                          items[index].$1 == AppStrings.myBookings ||
+                              items[index].$1 == AppStrings.navProfile;
+                      if (isGuest && isRestrictedTab) {
+                        final ok = await showSignInPrompt(context, ref);
+                        if (ok && context.mounted) {
+                          navigationShell.goBranch(
+                            index,
+                            initialLocation:
+                                index == navigationShell.currentIndex,
+                          );
+                        }
+                        return;
+                      }
+                      navigationShell.goBranch(
+                        index,
+                        initialLocation: index == navigationShell.currentIndex,
+                      );
+                    },
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -53,7 +75,14 @@ class JbbBottomNav extends ConsumerWidget {
                           size: AppSizes.iconMedium,
                           color: index == navigationShell.currentIndex
                               ? context.palette.accent
-                              : context.palette.textSecondary,
+                              : (isGuest &&
+                                      (items[index].$1 ==
+                                              AppStrings.myBookings ||
+                                          items[index].$1 ==
+                                              AppStrings.navProfile))
+                                  ? context.palette.textSecondary
+                                      .withValues(alpha: 0.5)
+                                  : context.palette.textSecondary,
                         ),
                         const SizedBox(height: AppSizes.s4),
                         Text(
@@ -64,7 +93,14 @@ class JbbBottomNav extends ConsumerWidget {
                             fontSize: AppSizes.font10,
                             color: index == navigationShell.currentIndex
                                 ? context.palette.accent
-                                : context.palette.textSecondary,
+                                : (isGuest &&
+                                        (items[index].$1 ==
+                                                AppStrings.myBookings ||
+                                            items[index].$1 ==
+                                                AppStrings.navProfile))
+                                    ? context.palette.textSecondary
+                                        .withValues(alpha: 0.5)
+                                    : context.palette.textSecondary,
                           ),
                         ),
                       ],

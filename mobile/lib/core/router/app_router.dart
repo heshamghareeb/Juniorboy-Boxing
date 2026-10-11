@@ -68,6 +68,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           profile.value?.role != 'superAdmin') {
         return AppRoutes.home;
       }
+      final isGuestUser = isGuest || user == null || user.isAnonymous;
+      if (isGuestUser &&
+          (state.uri.path == AppRoutes.bookings ||
+              state.uri.path == AppRoutes.profile)) {
+        return AppRoutes.home;
+      }
       return null;
     },
     routes: [

@@ -25,6 +25,7 @@ import '../../../payments/domain/payment.dart';
 import '../../../sessions/models/session_model.dart';
 import '../../../sessions/presentation/providers/session_provider.dart';
 import '../../../store/presentation/providers/store_provider.dart';
+import '../../../auth/presentation/widgets/sign_in_prompt_sheet.dart';
 import '../providers/profile_provider.dart';
 
 class MyBookingsScreen extends ConsumerStatefulWidget {
@@ -149,6 +150,45 @@ String? _safeCurrentEmail() {
         child: ListView(
           padding: const EdgeInsets.all(AppSizes.s16),
           children: [
+            if (uid == null) ...[
+              JbbCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        AppIcon(AppIcons.info, color: context.palette.accent),
+                        const SizedBox(width: AppSizes.s8),
+                        Text(
+                          'Guest Mode',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: AppSizes.font16,
+                            color: context.palette.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSizes.s8),
+                    Text(
+                      'Sign in to view your bookings, attendance history, and active session packs.',
+                      style: TextStyle(
+                        color: context.palette.textSecondary,
+                        fontSize: AppSizes.font13,
+                      ),
+                    ),
+                    const SizedBox(height: AppSizes.s12),
+                    OutlinedButton(
+                      onPressed: () => showSignInPrompt(context, ref),
+                      child: const Text('Sign In'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSizes.s16),
+            ] else ...[
+              const _ActiveMembershipStatusCard(),
+            ],
             const _MembershipPurchases(),
             const _StorePurchases(),
             SizedBox(height: AppSizes.s24),
@@ -285,6 +325,97 @@ String? _safeCurrentEmail() {
                         )
                       : const JbbLoading(),
                 ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveMembershipStatusCard extends ConsumerWidget {
+  const _ActiveMembershipStatusCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(profileProvider).value;
+    if (user == null) return const SizedBox.shrink();
+
+    final hasCredits = user.sessionsRemaining > 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSizes.s16),
+      child: Container(
+        padding: const EdgeInsets.all(AppSizes.s16),
+        decoration: BoxDecoration(
+          color: hasCredits
+              ? context.palette.accentTint
+              : context.palette.surface,
+          borderRadius: BorderRadius.circular(AppSizes.radius12),
+          border: Border.all(
+            color: hasCredits
+                ? context.palette.accent.withValues(alpha: 0.3)
+                : context.palette.separator,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: AppSizes.s40,
+              height: AppSizes.s40,
+              decoration: BoxDecoration(
+                color: hasCredits
+                    ? context.palette.accent
+                    : context.palette.separator,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: AppIcon(
+                  AppIcons.crown,
+                  size: AppSizes.s20,
+                  color: hasCredits ? Colors.white : context.palette.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSizes.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasCredits
+                        ? '${user.sessionsRemaining} Sessions Remaining'
+                        : 'No Active Session Pack',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppSizes.font15,
+                      color: hasCredits
+                          ? context.palette.accent
+                          : context.palette.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSizes.s2),
+                  Text(
+                    hasCredits
+                        ? '${user.sessionsReserved} sessions reserved'
+                        : 'Choose a plan to book your classes',
+                    style: TextStyle(
+                      fontSize: AppSizes.font12,
+                      color: context.palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => context.safeNavigate(AppRoutes.membership),
+              child: Text(
+                hasCredits ? 'Plans' : 'Buy Pack',
+                style: TextStyle(
+                  color: context.palette.accent,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ],
         ),
       ),

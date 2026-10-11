@@ -64,15 +64,28 @@ class MoreScreen extends ConsumerWidget {
                     ),
                     if (!isGuest &&
                         user != null &&
-                        user.memberSince.millisecondsSinceEpoch > 0)
+                        user.memberSince.millisecondsSinceEpoch > 0) ...[
                       Text(
                         'Member since ${dateLabel(readDate(user.memberSince))}',
                         style: TextStyle(
                           fontSize: AppSizes.font12,
                           color: context.palette.textSecondary,
                         ),
-                      )
-                    else if (isGuest)
+                      ),
+                      const SizedBox(height: AppSizes.s2),
+                      Text(
+                        user.sessionsRemaining > 0
+                            ? '${user.sessionsRemaining} session credits available'
+                            : 'No active session package',
+                        style: TextStyle(
+                          fontSize: AppSizes.font11,
+                          fontWeight: FontWeight.w600,
+                          color: user.sessionsRemaining > 0
+                              ? context.palette.accent
+                              : context.palette.textSecondary,
+                        ),
+                      ),
+                    ] else if (isGuest)
                       Text(
                         'Sign in to book sessions & memberships',
                         style: TextStyle(
@@ -103,13 +116,22 @@ class MoreScreen extends ConsumerWidget {
           children: [
             for (final item in [
               (AppStrings.myBookings, AppIcons.calendar, AppRoutes.bookings),
-              // (AppStrings.navMembership, AppIcons.crown, AppRoutes.membership),
+              (AppStrings.navMembership, AppIcons.crown, AppRoutes.membership),
               (AppStrings.gymStore, AppIcons.shoppingBag, AppRoutes.store),
             ])
               SettingsRow(
                 icon: item.$2,
                 title: item.$1,
-                onTap: () => context.safeNavigate(item.$3),
+                onTap: () async {
+                  if (item.$3 == AppRoutes.bookings && isGuest) {
+                    final ok = await showSignInPrompt(context, ref);
+                    if (ok && context.mounted) {
+                      context.safeNavigate(item.$3);
+                    }
+                    return;
+                  }
+                  context.safeNavigate(item.$3);
+                },
               ),
             SettingsRow(
               iconWidget: Container(

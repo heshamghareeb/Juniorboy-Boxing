@@ -12,6 +12,8 @@ import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/jbb_button.dart';
 import '../../../favorites/presentation/widgets/favorite_heart_button.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/widgets/sign_in_prompt_sheet.dart';
 import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../models/session_model.dart';
 import '../providers/session_provider.dart';
@@ -46,6 +48,12 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
   }
 
   Future<void> join() async {
+    final authUser = ref.read(authRepositoryProvider).currentUser;
+    if (authUser == null || authUser.isAnonymous) {
+      final ok = await showSignInPrompt(context, ref);
+      if (!ok || !mounted) return;
+    }
+
     final session = widget.session;
     final slots = session.resolvedTimeSlots;
     final chosenSlot = slots.isNotEmpty && selectedSlotIndex < slots.length
