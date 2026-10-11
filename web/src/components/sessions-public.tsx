@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { call } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { call, db } from '@/lib/firebase';
 import { useDocument, useRows } from '@/lib/hooks';
 import { Row } from '@/lib/types';
 import { errorMessage } from '@/lib/utils';
@@ -30,38 +31,147 @@ function dateRange(row: Row): string {
   return start === end ? start : `${start} – ${end}`;
 }
 
+function getSessionTimeSlots(row: Row): Array<{ startTime: string; endTime: string }> {
+  if (Array.isArray(row.timeSlots) && row.timeSlots.length > 0) {
+    return row.timeSlots.filter((s: any) => s && s.startTime && s.endTime);
+  }
+  if (row.startTime && row.endTime) {
+    return [{ startTime: row.startTime, endTime: row.endTime }];
+  }
+  return [];
+}
+
+function sessionTimesLabel(row: Row): string {
+  const slots = getSessionTimeSlots(row);
+  if (slots.length === 0) return '';
+  return slots.map((s) => `${s.startTime}–${s.endTime}`).join(', ');
+}
+
 function isPast(row: Row): boolean {
   const end = row.endDate?.toDate ? row.endDate.toDate() : new Date(row.endDate);
   return end < new Date(new Date().toDateString());
 }
 
-type SessionMember = { uid: string; fullName: string; childName: string; profilePicUrl: string | null };
+export type SessionMember = { uid: string; fullName: string; childName: string; profilePicUrl: string | null };
 
-function useSessionMembers(sessionId: string) {
+export function useSessionMembers(sessionId: string, joinedUserIds: string[] = []) {
   const [members, setMembers] = useState<SessionMember[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || joinedUserIds.length === 0) {
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
+    setLoading(true);
+
+    async function fetchFallback() {
+      if (cancelled) return;
+      try {
+        const loaded: SessionMember[] = [];
+        for (const uid of joinedUserIds) {
+          try {
+            const snap = await getDoc(doc(db, 'users', uid));
+            if (snap.exists()) {
+              const data = snap.data();
+              loaded.push({
+                uid,
+                fullName: data.fullName || 'Member',
+                childName: data.childName || '',
+                profilePicUrl: data.profilePicUrl || data.avatarUrl || null,
+              });
+            } else {
+              loaded.push({ uid, fullName: 'Member', childName: '', profilePicUrl: null });
+            }
+          } catch {
+            loaded.push({ uid, fullName: 'Member', childName: '', profilePicUrl: null });
+          }
+        }
+        if (!cancelled) setMembers(loaded);
+      } catch {
+        if (!cancelled) {
+          setMembers(joinedUserIds.map((uid) => ({ uid, fullName: 'Member', childName: '', profilePicUrl: null })));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
     call<{ members: SessionMember[] }>('getSessionMembers', { sessionId })
-      .then((r) => { if (!cancelled) setMembers(r.members || []); })
-      .catch(() => { if (!cancelled) setMembers([]); });
-    return () => { cancelled = true; };
-  }, [sessionId]);
-  return members;
+      .then((r) => {
+        if (!cancelled) {
+          if (r?.members && r.members.length > 0) {
+            setMembers(r.members);
+            setLoading(false);
+          } else {
+            fetchFallback();
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          fetchFallback();
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, joinedUserIds.join(',')]);
+
+  return { members, loading };
 }
 
-function JoinedAvatars({ members, totalCount, size = 26 }: { members: SessionMember[]; totalCount: number; size?: number }) {
+export function JoinedAvatars({ members, totalCount, size = 28 }: { members: SessionMember[]; totalCount: number; size?: number }) {
   if (!totalCount) return null;
   const visible = members.filter((m) => m.profilePicUrl).slice(0, 5);
   const overflow = totalCount - visible.length;
-  const step = size * 0.65;
+  const step = Math.round(size * 0.65);
+  const width = visible.length === 0 && overflow > 0 ? size : step * visible.length + (overflow > 0 ? step : 0) + (size - step);
   return (
-    <div style={{ position: 'relative', height: size, width: step * visible.length + (overflow > 0 ? step : 0) + (size - step), flexShrink: 0 }}>
+    <div style={{ position: 'relative', height: size, width, flexShrink: 0 }}>
       {visible.map((m, i) => (
-        <img key={m.uid} src={m.profilePicUrl!} alt="" style={{ position: 'absolute', left: i * step, top: 0, width: size, height: size, borderRadius: '50%', border: '2px solid var(--bg)', objectFit: 'cover' }} />
+        <img
+          key={m.uid || i}
+          src={m.profilePicUrl!}
+          alt=""
+          style={{
+            position: 'absolute',
+            left: i * step,
+            top: 0,
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            border: '2px solid var(--bg)',
+            objectFit: 'cover',
+            boxSizing: 'border-box',
+            zIndex: i + 1,
+          }}
+        />
       ))}
       {overflow > 0 && (
-        <div style={{ position: 'absolute', left: visible.length * step, top: 0, width: size, height: size, borderRadius: '50%', border: '2px solid var(--bg)', background: 'var(--red)', color: 'var(--on-accent)', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: visible.length * step,
+            top: 0,
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            border: '2px solid var(--bg)',
+            background: 'var(--red, #e50914)',
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxSizing: 'border-box',
+            zIndex: visible.length + 1,
+          }}
+        >
           +{overflow}
         </div>
       )}
@@ -69,9 +179,9 @@ function JoinedAvatars({ members, totalCount, size = 26 }: { members: SessionMem
   );
 }
 
-function JoinedMembersModal({ session, onClose }: { session: Row; onClose: () => void }) {
-  const members = useSessionMembers(session.id);
+export function JoinedMembersModal({ session, onClose }: { session: Row; onClose: () => void }) {
   const joinedUserIds: string[] = session.joinedUserIds || [];
+  const { members, loading } = useSessionMembers(session.id, joinedUserIds);
   return (
     <Modal title="Joined members" onClose={onClose}>
       <div className="stack">
@@ -80,26 +190,36 @@ function JoinedMembersModal({ session, onClose }: { session: Row; onClose: () =>
           <div className="parent-detail-chips" role="list" aria-label="Session details" style={{ marginTop: 8 }}>
             <span className="parent-chip" role="listitem">{typeLabel(session.type)}</span>
             <span className="parent-chip" role="listitem">{dateRange(session)}</span>
-            <span className="parent-chip" role="listitem">{session.startTime}–{session.endTime}</span>
+            {getSessionTimeSlots(session).map((slot, i) => (
+              <span key={i} className="parent-chip" role="listitem">{slot.startTime}–{slot.endTime}</span>
+            ))}
           </div>
           <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>{joinedUserIds.length} / {session.maxParticipants} joined</p>
         </div>
-        {joinedUserIds.length === 0 ? (
+        {loading ? (
+          <Loading />
+        ) : joinedUserIds.length === 0 ? (
           <Empty>No one has joined yet.</Empty>
         ) : members.length === 0 ? (
-          <Loading />
+          <Empty>No member details available.</Empty>
         ) : (
           <div className="stack" style={{ gap: 10 }}>
-            {members.map((m) => (
-              <div key={m.uid} className="row" style={{ gap: 10, alignItems: 'center' }}>
-                {m.profilePicUrl ? (
-                  <img src={m.profilePicUrl} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-tint)' }} />
-                )}
-                <span>{m.childName || m.fullName}</span>
-              </div>
-            ))}
+            {members.map((m, idx) => {
+              const displayName = (m.childName || '').trim() || (m.fullName && m.fullName.trim() !== 'Member' ? m.fullName.trim() : '') || `Member ${idx + 1}`;
+              const initial = displayName.charAt(0).toUpperCase() || 'M';
+              return (
+                <div key={m.uid || idx} className="row" style={{ gap: 10, alignItems: 'center' }}>
+                  {m.profilePicUrl ? (
+                    <img src={m.profilePicUrl} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--accent-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 14 }}>
+                      {initial}
+                    </div>
+                  )}
+                  <span>{displayName}</span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -107,16 +227,18 @@ function JoinedMembersModal({ session, onClose }: { session: Row; onClose: () =>
   );
 }
 
-function SessionCard({ session }: { session: Row }) {
+export function SessionCard({ session }: { session: Row }) {
   const joined = (session.joinedUserIds || []).length;
-  const members = useSessionMembers(session.id);
+  const { members } = useSessionMembers(session.id, session.joinedUserIds || []);
   const [showMembers, setShowMembers] = useState(false);
   return (
     <article className="card parent-offer-card" key={session.id}>
       {session.images?.[0] && (
         <img className="parent-offer-cover" src={session.images[0]} alt={session.title || ''} loading="lazy" />
       )}
-      <p className="eyebrow parent-offer-eyebrow">{typeLabel(session.type)} · {dateRange(session)}</p>
+      <p className="eyebrow parent-offer-eyebrow">
+        {[typeLabel(session.type), dateRange(session), sessionTimesLabel(session)].filter(Boolean).join(' · ')}
+      </p>
       <h3 className="parent-offer-title" title={session.title}>{session.title}</h3>
       <p className="parent-offer-desc" title={session.description}>{session.description}</p>
       <div className="parent-offer-footer">
@@ -163,9 +285,14 @@ export function SessionDetailPage({ id }: { id: string }) {
   const joinedUserIds: string[] = session?.joinedUserIds || [];
   const joined = !!user && joinedUserIds.includes(user.uid);
   const full = joinedUserIds.length >= (session?.maxParticipants || 0);
-  const members = useSessionMembers(session?.id || '');
+  const { members } = useSessionMembers(session?.id || '', joinedUserIds);
   const [showMembers, setShowMembers] = useState(false);
   const staff = isStaff(profile);
+
+  const slots = session ? getSessionTimeSlots(session) : [];
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(0);
+  const selectedSlot = slots[selectedSlotIndex] || slots[0];
+  const timeParam = selectedSlot ? `&time=${encodeURIComponent(`${selectedSlot.startTime}–${selectedSlot.endTime}`)}` : '';
 
   return (
     <div className="container page-wrap parent-offer-detail">
@@ -179,18 +306,55 @@ export function SessionDetailPage({ id }: { id: string }) {
             <div className="parent-detail-chips" role="list" aria-label="Session details">
               <span className="parent-chip" role="listitem">{typeLabel(session.type)}</span>
               <span className="parent-chip" role="listitem">{dateRange(session)}</span>
-              <span className="parent-chip" role="listitem">{session.startTime}–{session.endTime}</span>
               <span className="parent-chip" role="listitem">${Number(session.price || 0).toFixed(2)}</span>
             </div>
-            <button type="button" onClick={() => joinedUserIds.length && setShowMembers(true)} className="row" style={{ gap: 8, alignItems: 'center', background: 'transparent', border: 0, padding: 0, cursor: joinedUserIds.length ? 'pointer' : 'default' }}>
-              <JoinedAvatars members={members} totalCount={joinedUserIds.length} />
-              <span className="muted">{joinedUserIds.length} of {session.maxParticipants} places taken</span>
-            </button>
-            {!staff && (
-              <ActionLink href={joined || full ? '#' : `/offers/book?session=${encodeURIComponent(id)}`}>
-                {joined ? "You're in" : full ? 'Full' : `Join · $${Number(session.price || 0).toFixed(2)}`}
-              </ActionLink>
+
+            {slots.length > 0 && (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--muted)', marginBottom: 10 }}>
+                  {slots.length > 1 ? 'Select Session Timing' : 'Timing'}
+                </div>
+                <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {slots.length === 1 ? (
+                    <span className="parent-chip" role="listitem">
+                      {slots[0].startTime}–{slots[0].endTime}
+                    </span>
+                  ) : (
+                    slots.map((slot, i) => {
+                      const isSelected = i === selectedSlotIndex;
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setSelectedSlotIndex(i)}
+                          className={`parent-chip parent-chip-button ${isSelected ? 'selected' : ''}`}
+                          role="listitem"
+                          aria-pressed={isSelected}
+                          title={`Choose timing: ${slot.startTime}–${slot.endTime}`}
+                        >
+                          {isSelected ? '✓ ' : ''}{slot.startTime}–{slot.endTime}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             )}
+
+            <div style={{ marginTop: 18 }}>
+              <button type="button" onClick={() => joinedUserIds.length && setShowMembers(true)} className="row" style={{ gap: 8, alignItems: 'center', background: 'transparent', border: 0, padding: 0, cursor: joinedUserIds.length ? 'pointer' : 'default' }}>
+                <JoinedAvatars members={members} totalCount={joinedUserIds.length} />
+                <span className="muted">{joinedUserIds.length} / {session.maxParticipants} joined</span>
+              </button>
+            </div>
+
+            <div style={{ marginTop: 22 }}>
+              {!staff && (
+                <ActionLink href={joined || full ? '#' : `/offers/book?session=${encodeURIComponent(id)}${timeParam}`}>
+                  {joined ? "You're in" : full ? 'Full' : `Join · $${Number(session.price || 0).toFixed(2)}`}
+                </ActionLink>
+              )}
+            </div>
           </div>
           {showMembers && <JoinedMembersModal session={session} onClose={() => setShowMembers(false)} />}
         </>
@@ -199,7 +363,8 @@ export function SessionDetailPage({ id }: { id: string }) {
   );
 }
 
-export function SessionJoinPage({ id }: { id: string }) {
+
+export function SessionJoinPage({ id, initialTime }: { id: string; initialTime?: string }) {
   const router = useRouter();
   const { user, profile, loading: authLoading } = useAuth();
   const staff = isStaff(profile);
@@ -211,6 +376,15 @@ export function SessionJoinPage({ id }: { id: string }) {
   const [showAuth, setShowAuth] = useState(false);
   const submittedRef = useRef(false);
   const [submitted, setSubmitted] = useState(false);
+
+  const slots = session ? getSessionTimeSlots(session) : [];
+  const [selectedTime, setSelectedTime] = useState<string>(initialTime || '');
+
+  useEffect(() => {
+    if (!selectedTime && slots.length > 0) {
+      setSelectedTime(initialTime || `${slots[0].startTime}–${slots[0].endTime}`);
+    }
+  }, [slots, initialTime, selectedTime]);
 
   useEffect(() => {
     const saved = sessionStorage.getItem(`session-join:${id}`);
@@ -235,6 +409,7 @@ export function SessionJoinPage({ id }: { id: string }) {
       const r = await call<{ paymentId: string; clientSecret?: string; status: string }>('joinSession', {
         sessionId: id,
         requestId: crypto.randomUUID(),
+        timeSlot: selectedTime || (slots[0] ? `${slots[0].startTime}–${slots[0].endTime}` : undefined),
       });
       if (['completed', 'refunded', 'refund_pending'].includes(r.status)) {
         setStep('result');
@@ -255,7 +430,7 @@ export function SessionJoinPage({ id }: { id: string }) {
 
   return (
     <div className="container page-wrap">
-      <PageHeading title={session.title}>{dateRange(session)} · {session.startTime}–{session.endTime}</PageHeading>
+      <PageHeading title={session.title}>{[dateRange(session), selectedTime || sessionTimesLabel(session)].filter(Boolean).join(' · ')}</PageHeading>
       <div className="parent-flow card stack">
         {step === 'review' && (
           <>
@@ -269,6 +444,35 @@ export function SessionJoinPage({ id }: { id: string }) {
             ) : (
               <>
                 <p>${Number(session.price || 0).toFixed(2)} · pay securely to confirm your place.</p>
+                {slots.length > 1 && (
+                  <div style={{ margin: '8px 0 16px 0' }}>
+                    <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8 }}>
+                      Choose your session time:
+                    </label>
+                    <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                      {slots.map((s, idx) => {
+                        const label = `${s.startTime}–${s.endTime}`;
+                        const isSel = selectedTime ? selectedTime === label : idx === 0;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setSelectedTime(label)}
+                            className={`parent-chip parent-chip-button ${isSel ? 'selected' : ''}`}
+                            aria-pressed={isSel}
+                          >
+                            {isSel ? '✓ ' : ''}{label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {slots.length === 1 && (
+                  <p className="muted" style={{ margin: '0 0 14px 0', fontSize: 13 }}>
+                    Session Time: <strong>{slots[0].startTime}–{slots[0].endTime}</strong>
+                  </p>
+                )}
                 <Button busy={busy || authLoading} onClick={begin}>Continue to card payment</Button>
               </>
             )}
@@ -277,11 +481,11 @@ export function SessionJoinPage({ id }: { id: string }) {
         {step === 'payment' && (
           <>
             <h2>Card payment</h2>
-            <p>${Number(session.price || 0).toFixed(2)}</p>
+            <p>${Number(session.price || 0).toFixed(2)}{selectedTime ? ` · ${selectedTime}` : ''}</p>
             {secret && (
               <ParentPayment
                 secret={secret}
-                returnPath={`/offers/book?session=${encodeURIComponent(id)}`}
+                returnPath={`/offers/book?session=${encodeURIComponent(id)}${selectedTime ? `&time=${encodeURIComponent(selectedTime)}` : ''}`}
                 onConfirming={() => { submittedRef.current = true; setSubmitted(true); }}
                 onFailure={() => { submittedRef.current = false; setSubmitted(false); }}
                 onSubmitted={() => setStep('result')}
@@ -293,7 +497,7 @@ export function SessionJoinPage({ id }: { id: string }) {
         {step === 'result' && (
           <>
             <h2>{joined ? "You're in!" : 'Payment submitted'}</h2>
-            <p className="muted">{joined ? `You've joined ${session.title}.` : 'Confirming your payment — this page will update automatically.'}</p>
+            <p className="muted">{joined ? `You've joined ${session.title}${selectedTime ? ` for the ${selectedTime} timing` : ''}.` : 'Confirming your payment — this page will update automatically.'}</p>
             <ActionLink href={`/offers/detail?id=${encodeURIComponent(id)}`}>Back to session</ActionLink>
           </>
         )}
@@ -308,3 +512,4 @@ export function SessionJoinPage({ id }: { id: string }) {
     </div>
   );
 }
+

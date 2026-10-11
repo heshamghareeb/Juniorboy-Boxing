@@ -24,6 +24,12 @@ class SessionEditorScreen extends ConsumerStatefulWidget {
   ConsumerState<SessionEditorScreen> createState() => _SessionEditorState();
 }
 
+class _EditorSlot {
+  _EditorSlot({this.startTime, this.endTime});
+  TimeOfDay? startTime;
+  TimeOfDay? endTime;
+}
+
 class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
   final form = GlobalKey<FormState>();
   late final id = widget.session?.id ?? ref.read(sessionRepositoryProvider).newId();
@@ -38,7 +44,7 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
   late String imageUrl = widget.session?.images.firstOrNull ?? '';
   late String type = widget.session?.type ?? 'individual';
   DateTime? startDate, endDate;
-  TimeOfDay? startTime, endTime;
+  late final List<_EditorSlot> timeSlots;
   bool busy = false, photoBusy = false;
 
   @override
@@ -48,8 +54,25 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
     if (s != null) {
       startDate = s.startDate;
       endDate = s.endDate;
-      startTime = _parseTime(s.startTime);
-      endTime = _parseTime(s.endTime);
+      if (s.timeSlots.isNotEmpty) {
+        timeSlots = s.timeSlots
+            .map((slot) => _EditorSlot(
+                  startTime: _parseTime(slot.startTime),
+                  endTime: _parseTime(slot.endTime),
+                ))
+            .toList();
+      } else if (s.startTime.isNotEmpty && s.endTime.isNotEmpty) {
+        timeSlots = [
+          _EditorSlot(
+            startTime: _parseTime(s.startTime),
+            endTime: _parseTime(s.endTime),
+          )
+        ];
+      } else {
+        timeSlots = [_EditorSlot()];
+      }
+    } else {
+      timeSlots = [_EditorSlot()];
     }
   }
 
@@ -106,23 +129,37 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
     }
   }
 
-  Future<void> pickTime({required bool isStart}) async {
+  Future<void> pickSlotTime({required int index, required bool isStart}) async {
+    final slot = timeSlots[index];
     final picked = await showTimePicker(
       context: context,
-      initialTime:
-          (isStart ? startTime : endTime) ?? const TimeOfDay(hour: 16, minute: 0),
+      initialTime: (isStart ? slot.startTime : slot.endTime) ??
+          const TimeOfDay(hour: 16, minute: 0),
     );
     if (picked != null) {
-      setState(() => isStart ? startTime = picked : endTime = picked);
+      setState(() {
+        if (isStart) {
+          slot.startTime = picked;
+        } else {
+          slot.endTime = picked;
+        }
+      });
     }
   }
 
   Future<void> save() async {
+    final validSlots = timeSlots
+        .where((s) => s.startTime != null && s.endTime != null)
+        .map((s) => {
+              'startTime': _fmtTime(s.startTime!),
+              'endTime': _fmtTime(s.endTime!),
+            })
+        .toList();
+
     if (!form.currentState!.validate() ||
         startDate == null ||
         endDate == null ||
-        startTime == null ||
-        endTime == null) {
+        validSlots.isEmpty) {
       showMessage(context, AppStrings.uiPickDate);
       return;
     }
@@ -136,8 +173,9 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
         'type': type,
         'startDate': startDate,
         'endDate': endDate,
-        'startTime': _fmtTime(startTime!),
-        'endTime': _fmtTime(endTime!),
+        'timeSlots': validSlots,
+        'startTime': validSlots.first['startTime'],
+        'endTime': validSlots.first['endTime'],
         'maxParticipants': int.parse(maxParticipants.text),
         'joinedUserIds': widget.session?.joinedUserIds ?? <String>[],
       });
@@ -148,6 +186,7 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
       if (mounted) setState(() => busy = false);
     }
   }
+
 
   Future<void> delete() async {
     final confirmed = await showDialog<bool>(
@@ -284,22 +323,81 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
               trailing: const AppIcon(AppIcons.calendar),
               onTap: () => pickDate(isStart: false),
             ),
-            const SizedBox(height: AppSizes.s16),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(AppStrings.startTime),
-              subtitle: Text(startTime == null ? AppStrings.uiPickDate : _fmtTime(startTime!)),
-              trailing: const AppIcon(AppIcons.clock),
-              onTap: () => pickTime(isStart: true),
+            const SizedBox(height: AppSizes.s20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Session Timings (${timeSlots.length})',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: AppSizes.font14,
+                    color: context.palette.textPrimary,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(() => timeSlots.add(_EditorSlot())),
+                  icon: const AppIcon(AppIcons.plus, size: 16),
+                  label: const Text('Add Time'),
+                ),
+              ],
             ),
-            const Divider(height: 1),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(AppStrings.endTime),
-              subtitle: Text(endTime == null ? AppStrings.chooseEndTime : _fmtTime(endTime!)),
-              trailing: const AppIcon(AppIcons.clock),
-              onTap: () => pickTime(isStart: false),
-            ),
+            const SizedBox(height: AppSizes.s8),
+            ...List.generate(timeSlots.length, (index) {
+              final slot = timeSlots[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: AppSizes.s12),
+                padding: const EdgeInsets.all(AppSizes.s12),
+                decoration: BoxDecoration(
+                  color: context.palette.surface,
+                  borderRadius: BorderRadius.circular(AppSizes.radius8),
+                  border: Border.all(color: context.palette.separator),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Time ${index + 1}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: AppSizes.font12,
+                            color: context.palette.accent,
+                          ),
+                        ),
+                        if (timeSlots.length > 1)
+                          IconButton(
+                            icon: const AppIcon(AppIcons.trash, size: 16),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => setState(() => timeSlots.removeAt(index)),
+                          ),
+                      ],
+                    ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(AppStrings.startTime),
+                      subtitle: Text(
+                        slot.startTime == null ? AppStrings.uiPickDate : _fmtTime(slot.startTime!),
+                      ),
+                      trailing: const AppIcon(AppIcons.clock),
+                      onTap: () => pickSlotTime(index: index, isStart: true),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(AppStrings.endTime),
+                      subtitle: Text(
+                        slot.endTime == null ? AppStrings.chooseEndTime : _fmtTime(slot.endTime!),
+                      ),
+                      trailing: const AppIcon(AppIcons.clock),
+                      onTap: () => pickSlotTime(index: index, isStart: false),
+                    ),
+                  ],
+                ),
+              );
+            }),
             const SizedBox(height: AppSizes.s16),
             TextFormField(
               controller: maxParticipants,

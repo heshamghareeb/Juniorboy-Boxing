@@ -12,7 +12,7 @@ const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 const stripe = () => new Stripe(STRIPE_SECRET_KEY.value());
 const purchaseSchema = z.object({ planId: id, requestId: z.string().uuid() });
 const productPurchaseSchema = z.object({ productId: id, requestId: z.string().uuid(), size: z.string().max(20).optional() });
-const joinSessionSchema = z.object({ sessionId: id, requestId: z.string().uuid() });
+const joinSessionSchema = z.object({ sessionId: id, requestId: z.string().uuid(), timeSlot: z.string().max(100).optional() });
 
 async function createOrRetrieveIntent(ref: FirebaseFirestore.DocumentReference, order: FirebaseFirestore.DocumentData, metadata: Record<string, string>, receiptEmail?: string) {
   const api = stripe();
@@ -92,7 +92,7 @@ export const joinSession = onCall({ secrets: [STRIPE_SECRET_KEY], enforceAppChec
   await rateLimit(uid, 'payment', 8);
   const input = joinSessionSchema.safeParse(request.data);
   if (!input.success) throw new HttpsError('invalid-argument', 'A session and unique request ID are required.');
-  const { sessionId, requestId } = input.data;
+  const { sessionId, requestId, timeSlot } = input.data;
   const ref = db.doc(`payments/${uid}_${requestId}`);
   const order = await db.runTransaction(async tx => {
     const [old, sessionSnap] = await Promise.all([tx.get(ref), tx.get(db.doc(`sessions/${sessionId}`))]);
@@ -108,12 +108,12 @@ export const joinSession = onCall({ secrets: [STRIPE_SECRET_KEY], enforceAppChec
     if (joined.length >= (session.maxParticipants ?? 0)) throw new HttpsError('resource-exhausted', 'This session is full.');
     if (typeof session.price !== 'number' || !Number.isFinite(session.price) || session.price <= 0) throw new HttpsError('failed-precondition', 'Session is not available for purchase.');
     const amount = Math.round(session.price * 100);
-    const data = { userId: uid, sessionId, sessionTitle: session.title as string, amount, currency: 'usd', status: 'pending', paymentMethod: 'stripe', stripePaymentIntentId: null, receiptUrl: null, createdAt: now(), updatedAt: now() };
+    const data = { userId: uid, sessionId, sessionTitle: session.title as string, timeSlot: timeSlot || null, amount, currency: 'usd', status: 'pending', paymentMethod: 'stripe', stripePaymentIntentId: null, receiptUrl: null, createdAt: now(), updatedAt: now() };
     tx.create(ref, data);
     return data;
   });
   if (['completed', 'refunded', 'refund_pending'].includes(order.status)) return { paymentId: ref.id, status: order.status };
-  const intent = await createOrRetrieveIntent(ref, order, { paymentId: ref.id, userId: uid, sessionId }, user.email);
+  const intent = await createOrRetrieveIntent(ref, order, { paymentId: ref.id, userId: uid, sessionId, ...(timeSlot ? { timeSlot } : {}) }, user.email);
   return { paymentId: ref.id, clientSecret: intent.client_secret, status: intent.status };
 });
 
@@ -288,7 +288,10 @@ export const getPaymentHistory = callable(z.object({ before: z.string().datetime
 // allow a user to read their own profile or an admin to read any), so the
 // joined-members list on a session card goes through this function instead,
 // which uses the Admin SDK to return just the public display fields.
-export const getSessionMembers = callable(z.object({ sessionId: id }), 'getSessionMembers', async ({ sessionId }) => {
+export const getSessionMembers = onCall({ enforceAppCheck, maxInstances: 20 }, async request => {
+  const parsed = z.object({ sessionId: id }).safeParse(request.data);
+  if (!parsed.success) throw new HttpsError('invalid-argument', 'Invalid session ID.');
+  const { sessionId } = parsed.data;
   const sessionSnap = await db.doc(`sessions/${sessionId}`).get();
   if (!sessionSnap.exists) throw new HttpsError('not-found', 'Session not found.');
   const uids: string[] = sessionSnap.data()?.joinedUserIds || [];

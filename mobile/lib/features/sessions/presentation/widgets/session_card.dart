@@ -137,7 +137,7 @@ class _SessionCardState extends ConsumerState<SessionCard> {
                           ),
                         ),
                         Text(
-                          '$_dateRange · ${session.startTime}–${session.endTime}',
+                          '$_dateRange${session.formattedTimes.isNotEmpty ? ' · ${session.formattedTimes}' : ''}',
                           style: TextStyle(
                             color: context.palette.accent,
                             fontSize: AppSizes.font12,

@@ -14,6 +14,7 @@ import { HomeShopSection } from './featured-products';
 import { KidsGallery } from '@/components/kids-gallery';
 import './home-extras.css';
 import './sessions-public.css';
+import { JoinedAvatars, JoinedMembersModal, useSessionMembers } from './sessions-public';
 function HomeHeroSocial({settings}:{settings:any}){
   const address=String(settings?.address||'').trim();
   const social=((settings?.socialLinks||{})as Record<string,string>);
@@ -36,7 +37,36 @@ function HomeHeroSocial({settings}:{settings:any}){
   return <div className="home-social-strip"><div className="home-social-row">{items.map(item=><a key={item.name} href={item.url} target="_blank" rel="noreferrer" aria-label={item.label} className="home-social-link">{item.icon}</a>)}</div></div>;
 }
 export function HomePage(){const reduced=useReducedMotion(),settings=useDocument('gymSettings/config')||gym,{t}=useLocale();return <><IntroSplash/><section className="hero"><motion.div className="hero-copy" initial={reduced?false:{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.6}}><p className="eyebrow">Junior Boy Boxing</p><PunchTitle/><p className="lede">{t('public.home.hero.lede')}</p><div className="hero-actions"><ActionLink href="/offers">{t('common.bookNow')}</ActionLink></div><div className="hero-stamp"><Icon name="bolt" size={14}/>{t('public.home.hero.stamp')}</div></motion.div><div className="hero-photo"><img src={(settings as Record<string,string>).heroImageUrl||'/assets/images/backgrounds/bg_home_hero_logo.jpg'} alt="Junior Boy Boxing"/><div className="hero-caption"><span>{t('public.home.hero.captionLine1')}<br/>{t('public.home.hero.captionLine2')}</span></div></div></section><HomeHeroSocial settings={settings}/><HomeSessions/><HomeShopSection/><KidsGallery/><VisitUs/></>;}
-export function HomeSessions(){const {t}=useLocale();const {rows,loading,error}=useRows('sessions');const now=new Date(new Date().toDateString());const upcoming=rows.filter(r=>{const end=r.endDate?.toDate?r.endDate.toDate():new Date(r.endDate);return end>=now;}).sort((a,b)=>(a.startDate?.seconds||0)-(b.startDate?.seconds||0));const trackRef=useRef<HTMLDivElement>(null);function scroll(dir:number){const el=trackRef.current;if(!el)return;const card=el.querySelector('.parent-offer-card') as HTMLElement|null;const amount=(card?.offsetWidth||340)+24;el.scrollBy({left:dir*amount,behavior:'smooth'});}return <section className="section"><div className="container"><div className="section-heading"><div><p className="eyebrow">{t('public.home.sessions.eyebrow')}</p><h2>{t('nav.sessions')}</h2></div><Link href="/offers" className="section-link">{t('public.home.sessions.seeAll')}</Link></div>{error&&<Notice error>{error}</Notice>}{loading?<Loading/>:upcoming.length?<><div className="home-sessions-track" ref={trackRef}>{upcoming.map(s=><article className="card parent-offer-card" key={s.id}>{s.images?.[0]&&<img className="parent-offer-cover" src={s.images[0]} alt={s.title||''} loading="lazy"/>}<h3 className="parent-offer-title" title={s.title}>{s.title}</h3><p className="parent-offer-desc" title={s.description}>{s.description}</p><div className="parent-offer-footer"><div className="parent-offer-footer-row"><strong>${Number(s.price||0).toFixed(2)}</strong><span className="muted">{t('public.home.sessions.joinedCount',{joined:(s.joinedUserIds||[]).length,max:s.maxParticipants})}</span></div><ActionLink href={`/offers/detail?id=${encodeURIComponent(s.id)}`}>{t('common.viewDetails')}</ActionLink></div></article>)}</div>{upcoming.length>1&&<div className="home-carousel-arrows"><button type="button" aria-label={t('public.home.sessions.prevAria')} className="icon-button home-carousel-arrow" onClick={()=>scroll(-1)}><Icon name="chevron_left"/></button><button type="button" aria-label={t('public.home.sessions.nextAria')} className="icon-button home-carousel-arrow" onClick={()=>scroll(1)}><Icon name="chevron_right"/></button></div>}</>:<Empty>{t('public.home.sessions.empty')}</Empty>}</div></section>;}
+function HomeSessionCard({ session }: { session: any }) {
+  const { t } = useLocale();
+  const joined = (session.joinedUserIds || []).length;
+  const { members } = useSessionMembers(session.id, session.joinedUserIds || []);
+  const [showMembers, setShowMembers] = useState(false);
+  return (
+    <article className="card parent-offer-card" key={session.id}>
+      {session.images?.[0] && <img className="parent-offer-cover" src={session.images[0]} alt={session.title || ''} loading="lazy" />}
+      <h3 className="parent-offer-title" title={session.title}>{session.title}</h3>
+      <p className="parent-offer-desc" title={session.description}>{session.description}</p>
+      <div className="parent-offer-footer">
+        <div className="parent-offer-footer-row">
+          <strong>${Number(session.price || 0).toFixed(2)}</strong>
+          <button
+            type="button"
+            onClick={() => joined && setShowMembers(true)}
+            className="row"
+            style={{ gap: 6, alignItems: 'center', background: 'transparent', border: 0, padding: 0, cursor: joined ? 'pointer' : 'default' }}
+          >
+            <JoinedAvatars members={members} totalCount={joined} size={28} />
+            <span className="muted">{joined} / {session.maxParticipants} joined</span>
+          </button>
+        </div>
+        <ActionLink href={`/offers/detail?id=${encodeURIComponent(session.id)}`}>{t('common.viewDetails')}</ActionLink>
+      </div>
+      {showMembers && <JoinedMembersModal session={session} onClose={() => setShowMembers(false)} />}
+    </article>
+  );
+}
+export function HomeSessions(){const {t}=useLocale();const {rows,loading,error}=useRows('sessions');const now=new Date(new Date().toDateString());const upcoming=rows.filter(r=>{const end=r.endDate?.toDate?r.endDate.toDate():new Date(r.endDate);return end>=now;}).sort((a,b)=>(a.startDate?.seconds||0)-(b.startDate?.seconds||0));const trackRef=useRef<HTMLDivElement>(null);function scroll(dir:number){const el=trackRef.current;if(!el)return;const card=el.querySelector('.parent-offer-card') as HTMLElement|null;const amount=(card?.offsetWidth||340)+24;el.scrollBy({left:dir*amount,behavior:'smooth'});}return <section className="section"><div className="container"><div className="section-heading"><div><p className="eyebrow">{t('public.home.sessions.eyebrow')}</p><h2>{t('nav.sessions')}</h2></div><Link href="/offers" className="section-link">{t('public.home.sessions.seeAll')}</Link></div>{error&&<Notice error>{error}</Notice>}{loading?<Loading/>:upcoming.length?<><div className="home-sessions-track" ref={trackRef}>{upcoming.map(s=><HomeSessionCard key={s.id} session={s}/>)}</div>{upcoming.length>1&&<div className="home-carousel-arrows"><button type="button" aria-label={t('public.home.sessions.prevAria')} className="icon-button home-carousel-arrow" onClick={()=>scroll(-1)}><Icon name="chevron_left"/></button><button type="button" aria-label={t('public.home.sessions.nextAria')} className="icon-button home-carousel-arrow" onClick={()=>scroll(1)}><Icon name="chevron_right"/></button></div>}</>:<Empty>{t('public.home.sessions.empty')}</Empty>}</div></section>;}
 function VisitUs(){const settings=useDocument('gymSettings/config')||gym,address=String(settings.address||'').trim(),{t}=useLocale();if(!address)return null;return <section id="visit-us" className="section visit-us"><div className="container"><div className="section-heading"><div><p className="eyebrow">{t('public.home.visitUs.eyebrow')}</p><h2>{t('public.home.visitUs.title')}</h2></div></div><div className="visit-wrap"><iframe title={t('public.home.visitUs.mapTitle')} src={`https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`} loading="lazy" referrerPolicy="no-referrer-when-downgrade"/><a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" className="visit-address">{address}</a></div></div></section>;}
 export function Programs(){
   const {rows}=useRows('classes',[where('isActive','==',true)]);

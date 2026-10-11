@@ -65,3 +65,8 @@ export type GalleryPhoto = Row & {
   updatedAt: any;
   createdBy?: string;
 };
+
+export type SessionTimeSlot = {
+  startTime: string;
+  endTime: string;
+};

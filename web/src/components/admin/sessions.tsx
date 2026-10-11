@@ -5,7 +5,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { useRows } from '@/lib/hooks';
 import { useMemberProfiles } from '@/lib/member-cache';
-import { Row } from '@/lib/types';
+import { Row, SessionTimeSlot } from '@/lib/types';
 import { errorMessage } from '@/lib/utils';
 import { Button, Notice, PageHeading, Modal, Loading } from '../ui';
 import { MemberCell } from './member-cell';
@@ -29,6 +29,14 @@ function dateRangeLabel(row: Row): string {
   if (!row.startDate || !row.endDate) return '';
   const start = fmt(row.startDate), end = fmt(row.endDate);
   return start === end ? start : `${start} – ${end}`;
+}
+
+function formatSessionTimes(row: Row): string {
+  const slots: SessionTimeSlot[] = Array.isArray(row.timeSlots) && row.timeSlots.length > 0
+    ? row.timeSlots
+    : (row.startTime && row.endTime ? [{ startTime: row.startTime, endTime: row.endTime }] : []);
+  if (slots.length === 0) return '';
+  return slots.map((s) => `${s.startTime}–${s.endTime}`).join(', ');
 }
 
 export function AdminSessions() {
@@ -58,7 +66,7 @@ export function AdminSessions() {
                 <div>
                   <h3 style={{ margin: 0 }}>{s.title}</h3>
                   <p className="muted" style={{ margin: 0 }}>
-                    {[dateRangeLabel(s), `${s.startTime}–${s.endTime}`, `${(s.joinedUserIds || []).length}/${s.maxParticipants} joined`].filter(Boolean).join(' · ')}
+                    {[dateRangeLabel(s), formatSessionTimes(s), `${(s.joinedUserIds || []).length}/${s.maxParticipants} joined`].filter(Boolean).join(' · ')}
                   </p>
                 </div>
               </div>
@@ -77,6 +85,31 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
   const [imageUrl, setImageUrl] = useState<string>(row.images?.[0] || '');
   const joinedUserIds: string[] = row.joinedUserIds || [];
   const profiles = useMemberProfiles(joinedUserIds);
+
+  const [timeSlots, setTimeSlots] = useState<SessionTimeSlot[]>(() => {
+    if (Array.isArray(row.timeSlots) && row.timeSlots.length > 0) {
+      return row.timeSlots.map((s: any) => ({ startTime: s.startTime || '', endTime: s.endTime || '' }));
+    }
+    if (row.startTime || row.endTime) {
+      return [{ startTime: row.startTime || '', endTime: row.endTime || '' }];
+    }
+    return [{ startTime: '', endTime: '' }];
+  });
+
+  function updateSlot(index: number, field: 'startTime' | 'endTime', value: string) {
+    setTimeSlots((prev) => prev.map((slot, i) => (i === index ? { ...slot, [field]: value } : slot)));
+  }
+
+  function addSlot() {
+    setTimeSlots((prev) => [...prev, { startTime: '', endTime: '' }]);
+  }
+
+  function removeSlot(index: number) {
+    setTimeSlots((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
+  }
 
   async function uploadImage(file: File | undefined) {
     if (!file) return;
@@ -101,6 +134,25 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+
+    const validSlots = timeSlots.map((s) => ({
+      startTime: s.startTime.trim(),
+      endTime: s.endTime.trim(),
+    }));
+
+    if (validSlots.length === 0 || validSlots.some((s) => !s.startTime || !s.endTime)) {
+      setError('Please provide both Start Time and End Time for each timing slot.');
+      return;
+    }
+
+    for (let i = 0; i < validSlots.length; i++) {
+      const { startTime, endTime } = validSlots[i];
+      if (startTime >= endTime) {
+        setError(`Time slot ${i + 1}: End time must be after start time (${startTime} – ${endTime}).`);
+        return;
+      }
+    }
+
     setBusy(true);
     setError('');
     try {
@@ -114,8 +166,9 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
           price: Number(f.price),
           startDate: Timestamp.fromDate(new Date(f.startDate)),
           endDate: Timestamp.fromDate(new Date(f.endDate)),
-          startTime: f.startTime,
-          endTime: f.endTime,
+          timeSlots: validSlots,
+          startTime: validSlots[0]?.startTime || '',
+          endTime: validSlots[0]?.endTime || '',
           maxParticipants: Number(f.maxParticipants),
           joinedUserIds,
           createdAt: row.createdAt || serverTimestamp(),
@@ -177,10 +230,75 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
           <label className="field">Start Date<input name="startDate" type="date" defaultValue={toDateInput(row.startDate)} required /></label>
           <label className="field">End Date<input name="endDate" type="date" defaultValue={toDateInput(row.endDate)} required /></label>
         </div>
-        <div className="field-grid">
-          <label className="field">Start Time<input name="startTime" type="time" defaultValue={row.startTime || ''} required /></label>
-          <label className="field">End Time<input name="endTime" type="time" defaultValue={row.endTime || ''} required /></label>
+
+        <div className="stack" style={{ gap: 10 }}>
+          {timeSlots.map((slot, index) => (
+            <div key={index} className="field-grid" style={{ alignItems: 'flex-end', position: 'relative' }}>
+              <label className="field" style={{ margin: 0 }}>
+                Start Time
+                <input
+                  type="time"
+                  value={slot.startTime}
+                  onChange={(e) => updateSlot(index, 'startTime', e.target.value)}
+                  required
+                />
+              </label>
+              <div className="row" style={{ alignItems: 'flex-end', gap: 8, margin: 0 }}>
+                <label className="field" style={{ flex: 1, margin: 0 }}>
+                  End Time
+                  <input
+                    type="time"
+                    value={slot.endTime}
+                    onChange={(e) => updateSlot(index, 'endTime', e.target.value)}
+                    required
+                  />
+                </label>
+                {timeSlots.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSlot(index)}
+                    aria-label={`Remove time slot ${index + 1}`}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      color: 'var(--muted)',
+                      fontSize: 14,
+                      cursor: 'pointer',
+                      padding: '0 12px',
+                      height: 42,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    title="Remove time"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          <div>
+            <button
+              type="button"
+              onClick={addSlot}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--red, #e53935)',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '2px 0',
+              }}
+            >
+              + Add another time
+            </button>
+          </div>
         </div>
+
+
         <label className="field">Max Participants<input name="maxParticipants" type="number" min="1" defaultValue={row.maxParticipants ?? ''} required /></label>
         {joinedUserIds.length > 0 && (
           <div className="field">
@@ -199,3 +317,4 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
     </Modal>
   );
 }
+

@@ -274,6 +274,26 @@
   background: var(--surface);
 }
 
+.parent-chip-button {
+  cursor: pointer;
+  font: inherit;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.parent-chip-button:hover {
+  border-color: var(--red);
+  transform: translateY(-1px);
+}
+
+.parent-chip-button.selected {
+  background: var(--red) !important;
+  color: #fff !important;
+  border-color: var(--red) !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(229, 57, 53, 0.4);
+}
+
 /* 48-56px space before "Upcoming sessions" heading, and 20px before session rows */
 .parent-sessions-heading.section-heading,
 .parent-sessions-heading {
