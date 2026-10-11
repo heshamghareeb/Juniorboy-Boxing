@@ -87,50 +87,69 @@ class SessionMembersScreen extends ConsumerWidget {
         ),
         const Divider(height: 1),
         Expanded(
-          child: FutureBuilder<List<UserModel>>(
-            future: ref
-                .read(sessionRepositoryProvider)
-                .fetchMembers(session.id),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(
+          child: session.joinedUserIds.isEmpty
+              ? Center(
                   child: Text(
                     AppStrings.uiNoOneHasJoinedYet,
                     style: TextStyle(color: context.palette.textSecondary),
                   ),
-                );
-              }
-              if (!snapshot.hasData) return const JbbLoading();
-              final members = snapshot.data!;
-              if (members.isEmpty) {
-                return Center(
-                  child: Text(
-                    AppStrings.uiNoOneHasJoinedYet,
-                    style: TextStyle(color: context.palette.textSecondary),
-                  ),
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.all(AppSizes.s16),
-                itemCount: members.length,
-                itemBuilder: (context, index) {
-                  final member = members[index];
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: context.palette.accentTint,
-                      backgroundImage: member.profilePicUrl != null
-                          ? CachedNetworkImageProvider(member.profilePicUrl!)
-                          : null,
-                      child: member.profilePicUrl == null
-                          ? AppIcon(AppIcons.user, color: context.palette.accent)
-                          : null,
-                    ),
-                    title: Text(member.displayName),
-                  );
-                },
-              );
-            },
-          ),
+                )
+              : FutureBuilder<List<UserModel>>(
+                  future: ref
+                      .read(sessionRepositoryProvider)
+                      .fetchMembers(session.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const JbbLoading();
+                    }
+                    final members = snapshot.data ?? const [];
+                    final count = session.joinedUserIds.length;
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(AppSizes.s16),
+                      itemCount: members.isNotEmpty ? members.length : count,
+                      itemBuilder: (context, index) {
+                        if (index < members.length) {
+                          final member = members[index];
+                          final name = member.displayName.trim();
+                          final display = name.isNotEmpty && name != 'Member'
+                              ? name
+                              : 'Member ${index + 1}';
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: context.palette.accentTint,
+                              backgroundImage: member.profilePicUrl != null &&
+                                      member.profilePicUrl!.isNotEmpty
+                                  ? CachedNetworkImageProvider(
+                                      member.profilePicUrl!,
+                                    )
+                                  : null,
+                              child: member.profilePicUrl == null ||
+                                      member.profilePicUrl!.isEmpty
+                                  ? AppIcon(
+                                      AppIcons.user,
+                                      color: context.palette.accent,
+                                    )
+                                  : null,
+                            ),
+                            title: Text(display),
+                          );
+                        }
+                        // Fallback when member profiles cannot be fetched
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: context.palette.accentTint,
+                            child: AppIcon(
+                              AppIcons.user,
+                              color: context.palette.accent,
+                            ),
+                          ),
+                          title: Text('Member ${index + 1}'),
+                        );
+                      },
+                    );
+                  },
+                ),
         ),
       ],
     ),

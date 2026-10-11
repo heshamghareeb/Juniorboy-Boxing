@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/resources/app_icons.dart';
@@ -23,15 +24,29 @@ class AvatarStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visible = photoUrls.take(maxVisible).toList();
-    final overflow = totalCount - visible.length;
+    final visibleCount = min(totalCount, maxVisible);
+    final overflow = totalCount - visibleCount;
     final step = radius * 1.3;
+    final totalSlots = visibleCount + (overflow > 0 ? 1 : 0);
+
+    if (totalCount <= 0) {
+      return SizedBox(
+        height: radius * 2,
+        width: radius * 2,
+        child: CircleAvatar(
+          radius: radius,
+          backgroundColor: context.palette.accentTint,
+          child: AppIcon(AppIcons.user, size: radius, color: context.palette.accent),
+        ),
+      );
+    }
+
     return SizedBox(
       height: radius * 2,
-      width: step * visible.length + (overflow > 0 ? step : 0) + (radius * 2 - step),
+      width: (totalSlots > 0 ? step * (totalSlots - 1) : 0) + (radius * 2),
       child: Stack(
         children: [
-          for (var i = 0; i < visible.length; i++)
+          for (var i = 0; i < visibleCount; i++)
             Positioned(
               left: i * step,
               child: CircleAvatar(
@@ -40,13 +55,22 @@ class AvatarStack extends StatelessWidget {
                 child: CircleAvatar(
                   radius: radius - 2,
                   backgroundColor: context.palette.accentTint,
-                  backgroundImage: CachedNetworkImageProvider(visible[i]),
+                  backgroundImage: i < photoUrls.length && photoUrls[i].isNotEmpty
+                      ? CachedNetworkImageProvider(photoUrls[i])
+                      : null,
+                  child: i >= photoUrls.length || photoUrls[i].isEmpty
+                      ? AppIcon(
+                          AppIcons.user,
+                          size: radius * 0.9,
+                          color: context.palette.accent,
+                        )
+                      : null,
                 ),
               ),
             ),
           if (overflow > 0)
             Positioned(
-              left: visible.length * step,
+              left: visibleCount * step,
               child: CircleAvatar(
                 radius: radius,
                 backgroundColor: context.palette.background,
@@ -58,15 +82,6 @@ class AvatarStack extends StatelessWidget {
                     style: const TextStyle(fontSize: 10, color: Colors.white),
                   ),
                 ),
-              ),
-            ),
-          if (visible.isEmpty && overflow <= 0)
-            Positioned(
-              left: 0,
-              child: CircleAvatar(
-                radius: radius,
-                backgroundColor: context.palette.accentTint,
-                child: AppIcon(AppIcons.user, size: radius, color: context.palette.accent),
               ),
             ),
         ],
