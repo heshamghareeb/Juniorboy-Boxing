@@ -106,6 +106,8 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
     return [{ startTime: '', endTime: '', maxParticipants: Number(row.maxParticipants) || 5, joinedUserIds: [] }];
   });
 
+  const totalCalculatedCapacity = timeSlots.reduce((sum, s) => sum + (Math.max(1, Number(s.maxParticipants) || 1)), 0);
+
   function updateSlot(index: number, field: keyof SessionTimeSlot, value: any) {
     setTimeSlots((prev) => prev.map((slot, i) => (i === index ? { ...slot, [field]: value } : slot)));
   }
@@ -158,12 +160,18 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
     }
 
     for (let i = 0; i < validSlots.length; i++) {
-      const { startTime, endTime } = validSlots[i];
+      const { startTime, endTime, maxParticipants, joinedUserIds } = validSlots[i];
       if (startTime >= endTime) {
         setError(`Time slot ${i + 1}: End time must be after start time (${startTime} – ${endTime}).`);
         return;
       }
+      if (joinedUserIds.length > maxParticipants) {
+        setError(`Time slot ${i + 1} (${startTime}–${endTime}) has ${joinedUserIds.length} joined members. Spots cannot be lower than ${joinedUserIds.length}.`);
+        return;
+      }
     }
+
+    const totalMax = validSlots.reduce((sum, s) => sum + s.maxParticipants, 0);
 
     setBusy(true);
     setError('');
@@ -181,7 +189,7 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
           timeSlots: validSlots,
           startTime: validSlots[0]?.startTime || '',
           endTime: validSlots[0]?.endTime || '',
-          maxParticipants: Number(f.maxParticipants) || validSlots.reduce((sum, s) => sum + s.maxParticipants, 0),
+          maxParticipants: totalMax,
           joinedUserIds,
           createdAt: row.createdAt || serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -245,7 +253,15 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
 
         <div className="stack" style={{ gap: 10 }}>
           {timeSlots.map((slot, index) => (
-            <div key={index} className="field-grid" style={{ alignItems: 'flex-end', position: 'relative' }}>
+            <div
+              key={index}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: timeSlots.length > 1 ? 'minmax(0, 1fr) minmax(0, 1fr) 90px 44px' : 'minmax(0, 1fr) minmax(0, 1fr) 90px',
+                gap: 10,
+                alignItems: 'flex-end',
+              }}
+            >
               <label className="field" style={{ margin: 0 }}>
                 Start Time
                 <input
@@ -255,50 +271,62 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
                   required
                 />
               </label>
-              <div className="row" style={{ alignItems: 'flex-end', gap: 8, margin: 0 }}>
-                <label className="field" style={{ flex: 1, margin: 0 }}>
-                  End Time
-                  <input
-                    type="time"
-                    value={slot.endTime}
-                    onChange={(e) => updateSlot(index, 'endTime', e.target.value)}
-                    required
-                  />
-                </label>
-                <label className="field" style={{ width: 85, margin: 0 }}>
-                  Spots
-                  <input
-                    type="number"
-                    min="1"
-                    value={slot.maxParticipants || 1}
-                    onChange={(e) => updateSlot(index, 'maxParticipants', Math.max(1, Number(e.target.value) || 1))}
-                    required
-                  />
-                </label>
-                {timeSlots.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeSlot(index)}
-                    aria-label={`Remove time slot ${index + 1}`}
-                    style={{
-                      background: 'transparent',
-                      border: '1px solid var(--border)',
-                      borderRadius: 8,
-                      color: 'var(--muted)',
-                      fontSize: 14,
-                      cursor: 'pointer',
-                      padding: '0 12px',
-                      height: 42,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    title="Remove time"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
+
+              <label className="field" style={{ margin: 0 }}>
+                End Time
+                <input
+                  type="time"
+                  value={slot.endTime}
+                  onChange={(e) => updateSlot(index, 'endTime', e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="field" style={{ margin: 0 }}>
+                <span>
+                  Spots {(slot.joinedUserIds || []).length > 0 ? `(${slot.joinedUserIds?.length})` : ''}
+                </span>
+                <input
+                  type="number"
+                  min="1"
+                  value={slot.maxParticipants || 1}
+                  onChange={(e) => updateSlot(index, 'maxParticipants', Math.max(1, Number(e.target.value) || 1))}
+                  required
+                  style={{ textAlign: 'center' }}
+                />
+              </label>
+
+              {timeSlots.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeSlot(index)}
+                  aria-label={`Remove time slot ${index + 1}`}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--line, #333)',
+                    borderRadius: 8,
+                    color: 'var(--muted, #888)',
+                    fontSize: 15,
+                    cursor: 'pointer',
+                    height: 46,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title="Remove time slot"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--red, #e53935)';
+                    e.currentTarget.style.borderColor = 'var(--red, #e53935)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--muted, #888)';
+                    e.currentTarget.style.borderColor = 'var(--line, #333)';
+                  }}
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
           <div>
@@ -320,13 +348,60 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
           </div>
         </div>
 
+        <div style={{ background: 'var(--surface-2, rgba(255,255,255,0.04))', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
+          <div className="row spread" style={{ alignItems: 'center' }}>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 600, display: 'block' }}>Total Session Capacity</span>
+              <span className="muted" style={{ fontSize: 12 }}>Auto-calculated from all timing slots ({timeSlots.length} slot{timeSlots.length > 1 ? 's' : ''})</span>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--red, #e53935)' }}>
+              {totalCalculatedCapacity} spots
+            </div>
+          </div>
+        </div>
 
-        <label className="field">Max Participants<input name="maxParticipants" type="number" min="1" defaultValue={row.maxParticipants ?? ''} required /></label>
         {joinedUserIds.length > 0 && (
           <div className="field">
-            Joined ({joinedUserIds.length})
-            <div className="stack" style={{ gap: 6, marginTop: 6 }}>
-              {joinedUserIds.map((uid) => <MemberCell key={uid} uid={uid} profile={profiles[uid]} />)}
+            <div className="row spread" style={{ alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontWeight: 600 }}>Joined Members ({joinedUserIds.length})</span>
+              <span className="muted" style={{ fontSize: 12 }}>{joinedUserIds.length} / {totalCalculatedCapacity} spots filled</span>
+            </div>
+            <div className="stack" style={{ gap: 8 }}>
+              {timeSlots.map((slot, sIdx) => {
+                const sJoined = slot.joinedUserIds || [];
+                const label = slot.startTime && slot.endTime ? `${slot.startTime}–${slot.endTime}` : `Slot ${sIdx + 1}`;
+                return (
+                  <div key={sIdx} style={{ background: 'var(--surface-2, rgba(255,255,255,0.02))', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div className="row spread" style={{ alignItems: 'center', marginBottom: sJoined.length ? 6 : 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
+                      <span className="muted" style={{ fontSize: 12 }}>{sJoined.length} / {slot.maxParticipants || 1} spots</span>
+                    </div>
+                    {sJoined.length === 0 ? (
+                      <p className="muted" style={{ margin: 0, fontSize: 12 }}>No members signed up for this timing yet.</p>
+                    ) : (
+                      <div className="stack" style={{ gap: 6 }}>
+                        {sJoined.map((uid) => <MemberCell key={uid} uid={uid} profile={profiles[uid]} />)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {(() => {
+                const assigned = new Set(timeSlots.flatMap((s) => s.joinedUserIds || []));
+                const unassigned = joinedUserIds.filter((uid) => !assigned.has(uid));
+                if (unassigned.length === 0) return null;
+                return (
+                  <div style={{ background: 'var(--surface-2, rgba(255,255,255,0.02))', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div className="row spread" style={{ alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>General / Legacy Bookings</span>
+                      <span className="muted" style={{ fontSize: 12 }}>{unassigned.length} members</span>
+                    </div>
+                    <div className="stack" style={{ gap: 6 }}>
+                      {unassigned.map((uid) => <MemberCell key={uid} uid={uid} profile={profiles[uid]} />)}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
