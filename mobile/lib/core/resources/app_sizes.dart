@@ -56,6 +56,7 @@ abstract final class AppSizes {
   static const font40 = 40.0;
   static const radius2 = 2.0;
   static const radius4 = 4.0;
+  static const radius6 = 6.0;
   static const radius8 = 8.0;
   static const radius10 = 10.0;
   static const radius12 = 12.0;
