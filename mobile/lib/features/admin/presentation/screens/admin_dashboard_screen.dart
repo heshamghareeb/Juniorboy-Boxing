@@ -50,15 +50,15 @@ class AdminDashboardScreen extends ConsumerWidget {
                   MaterialPageRoute(builder: (_) => const AdminOrdersScreen()),
                 ),
               ),
-              SettingsRow(
-                icon: AppIcons.crown,
-                title: AppStrings.membershipSubscriptions,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const AdminSubscriptionsScreen(),
-                  ),
-                ),
-              ),
+              // SettingsRow(
+              //   icon: AppIcons.crown,
+              //   title: AppStrings.membershipSubscriptions,
+              //   onTap: () => Navigator.of(context).push(
+              //     MaterialPageRoute(
+              //       builder: (_) => const AdminSubscriptionsScreen(),
+              //     ),
+              //   ),
+              // ),
               SettingsRow(
                 icon: AppIcons.calendarCheck,
                 title: AppStrings.bookings,
@@ -271,7 +271,10 @@ class _GymInfoSectionState extends ConsumerState<_GymInfoSection> {
       streetName.text = parsed.streetName;
       city.text = parsed.city;
       country.text = parsed.country;
-      final parts = (settings.address ?? '').split(',').map((s) => s.trim()).toList();
+      final parts = (settings.address ?? '')
+          .split(',')
+          .map((s) => s.trim())
+          .toList();
       zipCode.text = settings.zipCode ?? (parts.length > 3 ? parts[2] : '');
       phone.text = settings.phone ?? '';
       loaded = true;
@@ -383,4 +386,3 @@ class _SocialLinksSectionState extends ConsumerState<_SocialLinksSection> {
     );
   }
 }
-
