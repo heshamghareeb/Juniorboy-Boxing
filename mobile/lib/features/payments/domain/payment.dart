@@ -14,6 +14,9 @@ class Payment {
     required this.estimatedDeliveryDate,
     required this.deliveryNote,
     this.trainingType,
+    this.sessionId,
+    this.sessionTitle,
+    this.timeSlot,
   });
 
   final String id;
@@ -24,6 +27,7 @@ class Payment {
   final String status;
   final String? paymentMethod, productName, size, deliveryNote;
   final String? trainingType;
+  final String? sessionId, sessionTitle, timeSlot;
   final DateTime createdAt;
   final DateTime? estimatedDeliveryDate;
 }

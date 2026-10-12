@@ -1,4 +1,5 @@
 import '../../../core/utils/date_utils.dart';
+import '../../../core/utils/non_empty.dart';
 import '../domain/booking.dart';
 
 class BookingModel extends Booking {
@@ -11,6 +12,11 @@ class BookingModel extends Booking {
     required super.status,
     super.category,
     super.trainingType,
+    super.startTime,
+    super.endTime,
+    super.timeSlot,
+    super.scheduleId,
+    super.sessionId,
   });
 
   factory BookingModel.fromMap(Map<String, dynamic> map) => BookingModel(
@@ -20,7 +26,12 @@ class BookingModel extends Booking {
     date: readDate(map['date']),
     endAt: readDate(map['endAt']),
     status: map['status'] as String? ?? '',
-    category: map['category'] as String?,
-    trainingType: map['trainingType'] as String?,
+    category: nonEmpty(map['category'] as String?),
+    trainingType: nonEmpty(map['trainingType'] as String?),
+    startTime: nonEmpty(map['startTime'] as String?),
+    endTime: nonEmpty(map['endTime'] as String?),
+    timeSlot: nonEmpty(map['timeSlot'] as String?),
+    scheduleId: nonEmpty(map['scheduleId'] as String?),
+    sessionId: nonEmpty(map['sessionId'] as String?),
   );
 }

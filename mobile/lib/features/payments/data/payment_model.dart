@@ -18,6 +18,9 @@ class PaymentModel extends Payment {
     required super.estimatedDeliveryDate,
     required super.deliveryNote,
     super.trainingType,
+    super.sessionId,
+    super.sessionTitle,
+    super.timeSlot,
   });
 
   factory PaymentModel.fromMap(Map<String, dynamic> map) => PaymentModel(
@@ -37,5 +40,8 @@ class PaymentModel extends Payment {
         : readDate(map['estimatedDeliveryDate']),
     deliveryNote: nonEmpty(map['deliveryNote'] as String?),
     trainingType: nonEmpty(map['trainingType'] as String?),
+    sessionId: nonEmpty(map['sessionId'] as String?),
+    sessionTitle: nonEmpty(map['sessionTitle'] as String?),
+    timeSlot: nonEmpty(map['timeSlot'] as String?),
   );
 }
