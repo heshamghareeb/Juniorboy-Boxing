@@ -106,6 +106,15 @@ export const joinSession = onCall({ secrets: [STRIPE_SECRET_KEY], enforceAppChec
     const joined: string[] = Array.isArray(session.joinedUserIds) ? session.joinedUserIds : [];
     if (joined.includes(uid)) throw new HttpsError('already-exists', "You've already joined this session.");
     if (joined.length >= (session.maxParticipants ?? 0)) throw new HttpsError('resource-exhausted', 'This session is full.');
+    if (timeSlot && Array.isArray(session.timeSlots)) {
+      const matchSlot = session.timeSlots.find((s: any) => `${s.startTime}–${s.endTime}` === timeSlot || `${s.startTime}-${s.endTime}` === timeSlot);
+      if (matchSlot) {
+        const slotJoined: string[] = Array.isArray(matchSlot.joinedUserIds) ? matchSlot.joinedUserIds : [];
+        if (slotJoined.includes(uid)) throw new HttpsError('already-exists', "You've already joined this time slot.");
+        const slotMax = typeof matchSlot.maxParticipants === 'number' && matchSlot.maxParticipants > 0 ? matchSlot.maxParticipants : (session.maxParticipants ?? 0);
+        if (slotMax > 0 && slotJoined.length >= slotMax) throw new HttpsError('resource-exhausted', `This time slot (${timeSlot}) is full.`);
+      }
+    }
     if (typeof session.price !== 'number' || !Number.isFinite(session.price) || session.price <= 0) throw new HttpsError('failed-precondition', 'Session is not available for purchase.');
     const amount = Math.round(session.price * 100);
     const data = { userId: uid, sessionId, sessionTitle: session.title as string, timeSlot: timeSlot || null, amount, currency: 'usd', status: 'pending', paymentMethod: 'stripe', stripePaymentIntentId: null, receiptUrl: null, createdAt: now(), updatedAt: now() };
@@ -138,9 +147,26 @@ export async function applySuccessfulPayment(paymentId: string, intent: { id: st
       if (sessionRef && sessionSnap?.exists) {
         const session = sessionSnap.data()!;
         const joined: string[] = Array.isArray(session.joinedUserIds) ? session.joinedUserIds : [];
-        if (!joined.includes(payment.userId) && joined.length < (session.maxParticipants ?? 0)) {
-          tx.update(sessionRef, { joinedUserIds: [...joined, payment.userId], updatedAt: now() });
+        const timeSlot = payment.timeSlot as string | null | undefined;
+        let updatedTimeSlots = session.timeSlots;
+        if (timeSlot && Array.isArray(session.timeSlots)) {
+          updatedTimeSlots = session.timeSlots.map((s: any) => {
+            const l1 = `${s.startTime}–${s.endTime}`, l2 = `${s.startTime}-${s.endTime}`;
+            if (l1 === timeSlot || l2 === timeSlot) {
+              const sJoined: string[] = Array.isArray(s.joinedUserIds) ? s.joinedUserIds : [];
+              if (!sJoined.includes(payment.userId)) return { ...s, joinedUserIds: [...sJoined, payment.userId] };
+            }
+            return s;
+          });
         }
+        const updates: Record<string, any> = { updatedAt: now() };
+        if (!joined.includes(payment.userId) && joined.length < (session.maxParticipants ?? 0)) {
+          updates.joinedUserIds = [...joined, payment.userId];
+        }
+        if (updatedTimeSlots) {
+          updates.timeSlots = updatedTimeSlots;
+        }
+        tx.update(sessionRef, updates);
       }
       notify(tx, `payment_${paymentId}`, payment.userId, "You're in!", `You've joined ${payment.sessionTitle || 'the session'}.`, 'session_joined', { paymentId, sessionId: payment.sessionId });
     } else {

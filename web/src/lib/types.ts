@@ -69,4 +69,6 @@ export type GalleryPhoto = Row & {
 export type SessionTimeSlot = {
   startTime: string;
   endTime: string;
+  maxParticipants?: number;
+  joinedUserIds?: string[];
 };

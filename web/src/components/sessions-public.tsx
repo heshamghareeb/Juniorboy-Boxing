@@ -31,12 +31,24 @@ function dateRange(row: Row): string {
   return start === end ? start : `${start} – ${end}`;
 }
 
-function getSessionTimeSlots(row: Row): Array<{ startTime: string; endTime: string }> {
+function getSessionTimeSlots(row: Row): Array<{ startTime: string; endTime: string; maxParticipants?: number; joinedUserIds?: string[] }> {
   if (Array.isArray(row.timeSlots) && row.timeSlots.length > 0) {
-    return row.timeSlots.filter((s: any) => s && s.startTime && s.endTime);
+    return row.timeSlots
+      .filter((s: any) => s && s.startTime && s.endTime)
+      .map((s: any) => ({
+        startTime: s.startTime,
+        endTime: s.endTime,
+        maxParticipants: Number(s.maxParticipants) || Number(row.maxParticipants) || 0,
+        joinedUserIds: Array.isArray(s.joinedUserIds) ? s.joinedUserIds : [],
+      }));
   }
   if (row.startTime && row.endTime) {
-    return [{ startTime: row.startTime, endTime: row.endTime }];
+    return [{
+      startTime: row.startTime,
+      endTime: row.endTime,
+      maxParticipants: Number(row.maxParticipants) || 0,
+      joinedUserIds: Array.isArray(row.joinedUserIds) ? row.joinedUserIds : [],
+    }];
   }
   return [];
 }
@@ -315,28 +327,26 @@ export function SessionDetailPage({ id }: { id: string }) {
                   {slots.length > 1 ? 'Select Session Timing' : 'Timing'}
                 </div>
                 <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {slots.length === 1 ? (
-                    <span className="parent-chip" role="listitem">
-                      {slots[0].startTime}–{slots[0].endTime}
-                    </span>
-                  ) : (
-                    slots.map((slot, i) => {
-                      const isSelected = i === selectedSlotIndex;
-                      return (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => setSelectedSlotIndex(i)}
-                          className={`parent-chip parent-chip-button ${isSelected ? 'selected' : ''}`}
-                          role="listitem"
-                          aria-pressed={isSelected}
-                          title={`Choose timing: ${slot.startTime}–${slot.endTime}`}
-                        >
-                          {isSelected ? '✓ ' : ''}{slot.startTime}–{slot.endTime}
-                        </button>
-                      );
-                    })
-                  )}
+                  {slots.map((slot, i) => {
+                    const isSelected = i === selectedSlotIndex;
+                    const slotFull = slot.maxParticipants ? (slot.joinedUserIds || []).length >= slot.maxParticipants : false;
+                    const spotsLabel = slot.maxParticipants ? ` (${(slot.joinedUserIds || []).length}/${slot.maxParticipants})` : '';
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => !slotFull && setSelectedSlotIndex(i)}
+                        className={`parent-chip parent-chip-button ${isSelected ? 'selected' : ''} ${slotFull ? 'disabled' : ''}`}
+                        role="listitem"
+                        disabled={slotFull}
+                        aria-pressed={isSelected}
+                        title={slotFull ? 'Time slot is full' : `Choose timing: ${slot.startTime}–${slot.endTime}`}
+                        style={slotFull ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                      >
+                        {isSelected ? '✓ ' : ''}{slot.startTime}–{slot.endTime}{spotsLabel}{slotFull ? ' (Full)' : ''}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

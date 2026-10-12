@@ -6,19 +6,54 @@ class SessionTimeSlot {
   const SessionTimeSlot({
     required this.startTime,
     required this.endTime,
+    this.maxParticipants = 0,
+    this.joinedUserIds = const [],
   });
 
   final String startTime;
   final String endTime;
+  final int maxParticipants;
+  final List<String> joinedUserIds;
 
-  factory SessionTimeSlot.fromMap(Map<String, dynamic> map) => SessionTimeSlot(
-        startTime: map['startTime'] as String? ?? '',
-        endTime: map['endTime'] as String? ?? '',
+  int get joinedCount => joinedUserIds.length;
+  bool get isFull => maxParticipants > 0 && joinedCount >= maxParticipants;
+  int get remainingSpots =>
+      maxParticipants > 0 ? (maxParticipants - joinedCount).clamp(0, maxParticipants) : 0;
+  String get label => '$startTime–$endTime';
+
+  SessionTimeSlot copyWith({
+    String? startTime,
+    String? endTime,
+    int? maxParticipants,
+    List<String>? joinedUserIds,
+  }) =>
+      SessionTimeSlot(
+        startTime: startTime ?? this.startTime,
+        endTime: endTime ?? this.endTime,
+        maxParticipants: maxParticipants ?? this.maxParticipants,
+        joinedUserIds: joinedUserIds ?? this.joinedUserIds,
       );
+
+  factory SessionTimeSlot.fromMap(
+    Map<String, dynamic> map, {
+    int defaultMax = 0,
+  }) {
+    final slotMax = (map['maxParticipants'] as num?)?.toInt() ?? defaultMax;
+    final rawJoined =
+        (map['joinedUserIds'] as List?)?.whereType<String>().toList() ?? const <String>[];
+    return SessionTimeSlot(
+      startTime: map['startTime'] as String? ?? '',
+      endTime: map['endTime'] as String? ?? '',
+      maxParticipants: slotMax,
+      joinedUserIds: rawJoined,
+    );
+  }
 
   Map<String, dynamic> toMap() => {
         'startTime': startTime,
         'endTime': endTime,
+        'maxParticipants': maxParticipants,
+        'joinedUserIds': joinedUserIds,
       };
 }
 
@@ -56,7 +91,14 @@ class SessionModel {
   List<SessionTimeSlot> get resolvedTimeSlots {
     if (timeSlots.isNotEmpty) return timeSlots;
     if (startTime.isNotEmpty && endTime.isNotEmpty) {
-      return [SessionTimeSlot(startTime: startTime, endTime: endTime)];
+      return [
+        SessionTimeSlot(
+          startTime: startTime,
+          endTime: endTime,
+          maxParticipants: maxParticipants,
+          joinedUserIds: joinedUserIds,
+        ),
+      ];
     }
     return const [];
   }
@@ -68,9 +110,13 @@ class SessionModel {
   }
 
   factory SessionModel.fromMap(Map<String, dynamic> map) {
+    final totalMax = (map['maxParticipants'] as num?)?.toInt() ?? 1;
     final rawSlots = (map['timeSlots'] as List?)
             ?.whereType<Map>()
-            .map((m) => SessionTimeSlot.fromMap(Map<String, dynamic>.from(m)))
+            .map((m) => SessionTimeSlot.fromMap(
+                  Map<String, dynamic>.from(m),
+                  defaultMax: totalMax,
+                ))
             .toList() ??
         const <SessionTimeSlot>[];
 
@@ -86,7 +132,7 @@ class SessionModel {
       startTime: map['startTime'] as String? ?? '',
       endTime: map['endTime'] as String? ?? '',
       timeSlots: rawSlots,
-      maxParticipants: (map['maxParticipants'] as num?)?.toInt() ?? 1,
+      maxParticipants: totalMax,
       joinedUserIds:
           (map['joinedUserIds'] as List?)?.whereType<String>().toList() ?? const [],
     );

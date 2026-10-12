@@ -36,7 +36,7 @@ function formatSessionTimes(row: Row): string {
     ? row.timeSlots
     : (row.startTime && row.endTime ? [{ startTime: row.startTime, endTime: row.endTime }] : []);
   if (slots.length === 0) return '';
-  return slots.map((s) => `${s.startTime}–${s.endTime}`).join(', ');
+  return slots.map((s) => s.maxParticipants ? `${s.startTime}–${s.endTime} (${(s.joinedUserIds || []).length}/${s.maxParticipants})` : `${s.startTime}–${s.endTime}`).join(', ');
 }
 
 export function AdminSessions() {
@@ -88,20 +88,30 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
 
   const [timeSlots, setTimeSlots] = useState<SessionTimeSlot[]>(() => {
     if (Array.isArray(row.timeSlots) && row.timeSlots.length > 0) {
-      return row.timeSlots.map((s: any) => ({ startTime: s.startTime || '', endTime: s.endTime || '' }));
+      return row.timeSlots.map((s: any) => ({
+        startTime: s.startTime || '',
+        endTime: s.endTime || '',
+        maxParticipants: Number(s.maxParticipants) || Number(row.maxParticipants) || 1,
+        joinedUserIds: Array.isArray(s.joinedUserIds) ? s.joinedUserIds : [],
+      }));
     }
     if (row.startTime || row.endTime) {
-      return [{ startTime: row.startTime || '', endTime: row.endTime || '' }];
+      return [{
+        startTime: row.startTime || '',
+        endTime: row.endTime || '',
+        maxParticipants: Number(row.maxParticipants) || 1,
+        joinedUserIds: Array.isArray(row.joinedUserIds) ? row.joinedUserIds : [],
+      }];
     }
-    return [{ startTime: '', endTime: '' }];
+    return [{ startTime: '', endTime: '', maxParticipants: Number(row.maxParticipants) || 5, joinedUserIds: [] }];
   });
 
-  function updateSlot(index: number, field: 'startTime' | 'endTime', value: string) {
+  function updateSlot(index: number, field: keyof SessionTimeSlot, value: any) {
     setTimeSlots((prev) => prev.map((slot, i) => (i === index ? { ...slot, [field]: value } : slot)));
   }
 
   function addSlot() {
-    setTimeSlots((prev) => [...prev, { startTime: '', endTime: '' }]);
+    setTimeSlots((prev) => [...prev, { startTime: '', endTime: '', maxParticipants: 5, joinedUserIds: [] }]);
   }
 
   function removeSlot(index: number) {
@@ -138,6 +148,8 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
     const validSlots = timeSlots.map((s) => ({
       startTime: s.startTime.trim(),
       endTime: s.endTime.trim(),
+      maxParticipants: Math.max(1, Number(s.maxParticipants) || 1),
+      joinedUserIds: s.joinedUserIds || [],
     }));
 
     if (validSlots.length === 0 || validSlots.some((s) => !s.startTime || !s.endTime)) {
@@ -169,7 +181,7 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
           timeSlots: validSlots,
           startTime: validSlots[0]?.startTime || '',
           endTime: validSlots[0]?.endTime || '',
-          maxParticipants: Number(f.maxParticipants),
+          maxParticipants: Number(f.maxParticipants) || validSlots.reduce((sum, s) => sum + s.maxParticipants, 0),
           joinedUserIds,
           createdAt: row.createdAt || serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -250,6 +262,16 @@ function SessionEditor({ row, onClose }: { row: Row; onClose: () => void }) {
                     type="time"
                     value={slot.endTime}
                     onChange={(e) => updateSlot(index, 'endTime', e.target.value)}
+                    required
+                  />
+                </label>
+                <label className="field" style={{ width: 85, margin: 0 }}>
+                  Spots
+                  <input
+                    type="number"
+                    min="1"
+                    value={slot.maxParticipants || 1}
+                    onChange={(e) => updateSlot(index, 'maxParticipants', Math.max(1, Number(e.target.value) || 1))}
                     required
                   />
                 </label>

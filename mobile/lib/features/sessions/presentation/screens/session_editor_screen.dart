@@ -25,9 +25,24 @@ class SessionEditorScreen extends ConsumerStatefulWidget {
 }
 
 class _EditorSlot {
-  _EditorSlot({this.startTime, this.endTime});
+  _EditorSlot({
+    this.startTime,
+    this.endTime,
+    int? maxParticipants,
+    List<String>? joinedUserIds,
+  })  : maxParticipants = TextEditingController(
+          text: maxParticipants != null && maxParticipants > 0 ? '$maxParticipants' : '',
+        ),
+        joinedUserIds = joinedUserIds ?? <String>[];
+
   TimeOfDay? startTime;
   TimeOfDay? endTime;
+  final TextEditingController maxParticipants;
+  List<String> joinedUserIds;
+
+  void dispose() {
+    maxParticipants.dispose();
+  }
 }
 
 class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
@@ -59,6 +74,10 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
             .map((slot) => _EditorSlot(
                   startTime: _parseTime(slot.startTime),
                   endTime: _parseTime(slot.endTime),
+                  maxParticipants: slot.maxParticipants > 0
+                      ? slot.maxParticipants
+                      : s.maxParticipants,
+                  joinedUserIds: slot.joinedUserIds,
                 ))
             .toList();
       } else if (s.startTime.isNotEmpty && s.endTime.isNotEmpty) {
@@ -66,10 +85,12 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
           _EditorSlot(
             startTime: _parseTime(s.startTime),
             endTime: _parseTime(s.endTime),
+            maxParticipants: s.maxParticipants,
+            joinedUserIds: s.joinedUserIds,
           )
         ];
       } else {
-        timeSlots = [_EditorSlot()];
+        timeSlots = [_EditorSlot(maxParticipants: s.maxParticipants)];
       }
     } else {
       timeSlots = [_EditorSlot()];
@@ -89,6 +110,9 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
 
   @override
   void dispose() {
+    for (final slot in timeSlots) {
+      slot.dispose();
+    }
     title.dispose();
     description.dispose();
     price.dispose();
@@ -150,10 +174,17 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
   Future<void> save() async {
     final validSlots = timeSlots
         .where((s) => s.startTime != null && s.endTime != null)
-        .map((s) => {
-              'startTime': _fmtTime(s.startTime!),
-              'endTime': _fmtTime(s.endTime!),
-            })
+        .map((s) {
+          final slotCap = int.tryParse(s.maxParticipants.text.trim()) ??
+              int.tryParse(maxParticipants.text.trim()) ??
+              1;
+          return {
+            'startTime': _fmtTime(s.startTime!),
+            'endTime': _fmtTime(s.endTime!),
+            'maxParticipants': slotCap > 0 ? slotCap : 1,
+            'joinedUserIds': s.joinedUserIds,
+          };
+        })
         .toList();
 
     if (!form.currentState!.validate() ||
@@ -165,6 +196,15 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
     }
     setState(() => busy = true);
     try {
+      final totalSlotCapacity = validSlots.fold<int>(
+        0,
+        (sum, item) => sum + ((item['maxParticipants'] as int?) ?? 1),
+      );
+      final explicitTotal = int.tryParse(maxParticipants.text.trim());
+      final finalMax = (explicitTotal != null && explicitTotal > 0)
+          ? explicitTotal
+          : totalSlotCapacity;
+
       await ref.read(sessionRepositoryProvider).save(id, {
         'title': title.text.trim(),
         'description': description.text.trim(),
@@ -176,7 +216,7 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
         'timeSlots': validSlots,
         'startTime': validSlots.first['startTime'],
         'endTime': validSlots.first['endTime'],
-        'maxParticipants': int.parse(maxParticipants.text),
+        'maxParticipants': finalMax > 0 ? finalMax : 1,
         'joinedUserIds': widget.session?.joinedUserIds ?? <String>[],
       });
       if (mounted) Navigator.of(context).pop();
@@ -336,7 +376,10 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: () => setState(() => timeSlots.add(_EditorSlot())),
+                  onPressed: () => setState(() {
+                    final fallback = int.tryParse(maxParticipants.text.trim());
+                    timeSlots.add(_EditorSlot(maxParticipants: fallback));
+                  }),
                   icon: const AppIcon(AppIcons.plus, size: 16),
                   label: const Text('Add Time'),
                 ),
@@ -374,7 +417,10 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
                                 icon: const AppIcon(AppIcons.trash, size: 16),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
-                                onPressed: () => setState(() => timeSlots.removeAt(index)),
+                                onPressed: () => setState(() {
+                                  timeSlots[index].dispose();
+                                  timeSlots.removeAt(index);
+                                }),
                               ),
                           ],
                         ),
@@ -397,6 +443,29 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
                           trailing: const AppIcon(AppIcons.clock),
                           onTap: () => pickSlotTime(index: index, isStart: false),
                         ),
+                        const Divider(height: 1),
+                        const SizedBox(height: AppSizes.s12),
+                        TextFormField(
+                          controller: slot.maxParticipants,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Max spots for this hour',
+                            hintText: 'e.g. 5',
+                            prefixIcon: const AppIcon(AppIcons.user, size: 18),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(AppSizes.radius8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: AppSizes.s12,
+                              vertical: AppSizes.s10,
+                            ),
+                          ),
+                          validator: (v) {
+                            final n = int.tryParse(v?.trim() ?? '');
+                            if (n == null || n <= 0) return 'Enter capacity (> 0)';
+                            return null;
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -407,9 +476,15 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
             TextFormField(
               controller: maxParticipants,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: AppStrings.uiMaxParticipants),
-              validator: (v) =>
-                  int.tryParse(v ?? '') != null && int.parse(v!) > 0 ? null : 'Enter a valid number',
+              decoration: const InputDecoration(
+                labelText: '${AppStrings.uiMaxParticipants} (Total / Optional)',
+                helperText: 'Leave empty to auto-sum all hourly spots',
+              ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                final n = int.tryParse(v.trim());
+                return n != null && n > 0 ? null : 'Enter a valid number';
+              },
             ),
             const SizedBox(height: AppSizes.s28),
             JbbButton(label: AppStrings.addSession, busy: busy, onPressed: save),

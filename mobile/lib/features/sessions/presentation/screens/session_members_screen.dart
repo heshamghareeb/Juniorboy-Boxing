@@ -76,12 +76,26 @@ class SessionMembersScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AppSizes.s6),
               Text(
-                '${session.joinedUserIds.length}/${session.maxParticipants} joined',
+                '${session.joinedUserIds.length}/${session.maxParticipants} total joined',
                 style: TextStyle(
                   color: context.palette.textSecondary,
                   fontSize: AppSizes.font13,
                 ),
               ),
+              if (session.resolvedTimeSlots.length > 1) ...[
+                const SizedBox(height: AppSizes.s8),
+                Wrap(
+                  spacing: AppSizes.s8,
+                  runSpacing: AppSizes.s4,
+                  children: [
+                    for (final s in session.resolvedTimeSlots)
+                      _InfoChip(
+                        icon: AppIcons.clock,
+                        label: '${s.startTime}–${s.endTime}: ${s.joinedCount}/${s.maxParticipants}',
+                      ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

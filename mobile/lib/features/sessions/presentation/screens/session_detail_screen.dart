@@ -31,6 +31,14 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
   bool busy = false;
   int selectedSlotIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    final slots = widget.session.resolvedTimeSlots;
+    final firstAvail = slots.indexWhere((s) => !s.isFull);
+    selectedSlotIndex = firstAvail >= 0 ? firstAvail : 0;
+  }
+
   String get _typeLabel => switch (widget.session.type) {
     'team' => 'Group',
     'duo' => 'Duo',
@@ -79,10 +87,16 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
     final session = widget.session;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final joined = uid != null && session.joinedUserIds.contains(uid);
-    final full = session.joinedUserIds.length >= session.maxParticipants;
+    final slots = session.resolvedTimeSlots;
+    final full = (slots.isNotEmpty && slots.every((s) => s.isFull)) ||
+        (session.maxParticipants > 0 &&
+            session.joinedUserIds.length >= session.maxParticipants);
+    final currentSlot = slots.isNotEmpty && selectedSlotIndex < slots.length
+        ? slots[selectedSlotIndex]
+        : null;
+    final isCurrentSlotFull = currentSlot?.isFull ?? false;
     final role = ref.watch(profileProvider).value?.role;
     final isAdmin = role == 'admin' || role == 'superAdmin';
-    final slots = session.resolvedTimeSlots;
 
     return Scaffold(
       backgroundColor: context.palette.background,
@@ -255,65 +269,111 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                         final slot = slots[i];
                         final slotStr = '${slot.startTime}–${slot.endTime}';
                         final isSelected = selectedSlotIndex == i;
-                        return InkWell(
-                          onTap: slots.length > 1
-                              ? () => setState(() => selectedSlotIndex = i)
-                              : null,
-                          borderRadius: BorderRadius.circular(AppSizes.radius12),
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: AppSizes.s8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSizes.s16,
-                              vertical: AppSizes.s14,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? context.palette.accent.withValues(alpha: 0.08)
-                                  : context.palette.surface,
-                              borderRadius: BorderRadius.circular(AppSizes.radius12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? context.palette.accent
-                                    : context.palette.separator,
-                                width: isSelected ? 1.5 : 1,
+                        final isSlotFull = slot.isFull;
+
+                        return Opacity(
+                          opacity: isSlotFull ? 0.6 : 1.0,
+                          child: InkWell(
+                            onTap: isSlotFull
+                                ? null
+                                : (slots.length > 1
+                                    ? () => setState(() => selectedSlotIndex = i)
+                                    : null),
+                            borderRadius: BorderRadius.circular(AppSizes.radius12),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: AppSizes.s8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSizes.s16,
+                                vertical: AppSizes.s14,
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                AppIcon(
-                                  AppIcons.clock,
-                                  size: AppSizes.s18,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? context.palette.accent.withValues(alpha: 0.08)
+                                    : context.palette.surface,
+                                borderRadius: BorderRadius.circular(AppSizes.radius12),
+                                border: Border.all(
                                   color: isSelected
                                       ? context.palette.accent
-                                      : context.palette.textSecondary,
+                                      : context.palette.separator,
+                                  width: isSelected ? 1.5 : 1,
                                 ),
-                                const SizedBox(width: AppSizes.s12),
-                                Expanded(
-                                  child: Text(
-                                    slotStr,
-                                    style: TextStyle(
-                                      fontSize: AppSizes.font15,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.w500,
-                                      color: isSelected
-                                          ? context.palette.accent
-                                          : context.palette.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                                if (slots.length > 1)
+                              ),
+                              child: Row(
+                                children: [
                                   AppIcon(
-                                    isSelected
-                                        ? AppIcons.checkCircle
-                                        : AppIcons.circle,
-                                    size: AppSizes.s20,
+                                    AppIcons.clock,
+                                    size: AppSizes.s18,
                                     color: isSelected
                                         ? context.palette.accent
-                                        : context.palette.textSecondary
-                                            .withValues(alpha: 0.4),
+                                        : context.palette.textSecondary,
                                   ),
-                              ],
+                                  const SizedBox(width: AppSizes.s12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          slotStr,
+                                          style: TextStyle(
+                                            fontSize: AppSizes.font15,
+                                            fontWeight: isSelected
+                                                ? FontWeight.bold
+                                                : FontWeight.w500,
+                                            color: isSelected
+                                                ? context.palette.accent
+                                                : context.palette.textPrimary,
+                                          ),
+                                        ),
+                                        if (slot.maxParticipants > 0) ...[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            isSlotFull
+                                                ? 'Full (${slot.joinedCount}/${slot.maxParticipants})'
+                                                : '${slot.remainingSpots} spots left (${slot.joinedCount}/${slot.maxParticipants})',
+                                            style: TextStyle(
+                                              fontSize: AppSizes.font12,
+                                              fontWeight: FontWeight.w500,
+                                              color: isSlotFull
+                                                  ? context.palette.textSecondary
+                                                  : context.palette.accent,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSlotFull)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: context.palette.separator,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'FULL',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    )
+                                  else if (slots.length > 1)
+                                    AppIcon(
+                                      isSelected
+                                          ? AppIcons.checkCircle
+                                          : AppIcons.circle,
+                                      size: AppSizes.s20,
+                                      color: isSelected
+                                          ? context.palette.accent
+                                          : context.palette.textSecondary
+                                              .withValues(alpha: 0.4),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -436,11 +496,11 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
                       child: JbbButton(
                         label: joined
                             ? "You're in"
-                            : full
+                            : (full || isCurrentSlotFull)
                                 ? 'Full'
                                 : 'Join Session',
                         busy: busy,
-                        onPressed: joined || full ? null : join,
+                        onPressed: joined || full || isCurrentSlotFull ? null : join,
                       ),
                     ),
                   ],

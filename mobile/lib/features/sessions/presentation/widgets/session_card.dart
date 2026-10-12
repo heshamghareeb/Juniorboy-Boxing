@@ -48,9 +48,10 @@ class _SessionCardState extends ConsumerState<SessionCard> {
 
     final session = widget.session;
     final slots = session.resolvedTimeSlots;
-    String? selectedSlot = slots.isNotEmpty
-        ? '${slots.first.startTime}–${slots.first.endTime}'
-        : null;
+    final firstAvailable = slots.where((s) => !s.isFull).firstOrNull;
+    String? selectedSlot = firstAvailable != null
+        ? '${firstAvailable.startTime}–${firstAvailable.endTime}'
+        : (slots.isNotEmpty ? '${slots.first.startTime}–${slots.first.endTime}' : null);
 
     final confirmedSlot = await showModalBottomSheet<String>(
       context: context,
@@ -61,6 +62,11 @@ class _SessionCardState extends ConsumerState<SessionCard> {
       ),
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) {
+          final currentSelected = slots
+              .where((s) => '${s.startTime}–${s.endTime}' == selectedSlot)
+              .firstOrNull;
+          final canConfirm = currentSelected == null || !currentSelected.isFull;
+
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(
@@ -114,64 +120,109 @@ class _SessionCardState extends ConsumerState<SessionCard> {
                     ...slots.map((slot) {
                       final slotStr = '${slot.startTime}–${slot.endTime}';
                       final isSelected = selectedSlot == slotStr;
-                      return InkWell(
-                        onTap: slots.length > 1
-                            ? () => setSheetState(() => selectedSlot = slotStr)
-                            : null,
-                        borderRadius: BorderRadius.circular(AppSizes.radius8),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: AppSizes.s8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSizes.s12,
-                            vertical: AppSizes.s12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? context.palette.accent.withValues(alpha: 0.1)
-                                : context.palette.surface,
-                            borderRadius: BorderRadius.circular(AppSizes.radius8),
-                            border: Border.all(
-                              color: isSelected
-                                  ? context.palette.accent
-                                  : context.palette.separator,
-                              width: isSelected ? 1.5 : 1,
+                      final isSlotFull = slot.isFull;
+                      return Opacity(
+                        opacity: isSlotFull ? 0.6 : 1.0,
+                        child: InkWell(
+                          onTap: isSlotFull
+                              ? null
+                              : (slots.length > 1
+                                  ? () => setSheetState(() => selectedSlot = slotStr)
+                                  : null),
+                          borderRadius: BorderRadius.circular(AppSizes.radius8),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: AppSizes.s8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSizes.s12,
+                              vertical: AppSizes.s12,
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              AppIcon(
-                                AppIcons.clock,
-                                size: AppSizes.s16,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? context.palette.accent.withValues(alpha: 0.1)
+                                  : context.palette.surface,
+                              borderRadius: BorderRadius.circular(AppSizes.radius8),
+                              border: Border.all(
                                 color: isSelected
                                     ? context.palette.accent
-                                    : context.palette.textSecondary,
+                                    : context.palette.separator,
+                                width: isSelected ? 1.5 : 1,
                               ),
-                              const SizedBox(width: AppSizes.s10),
-                              Expanded(
-                                child: Text(
-                                  slotStr,
-                                  style: TextStyle(
-                                    fontSize: AppSizes.font14,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                    color: isSelected
-                                        ? context.palette.accent
-                                        : context.palette.textPrimary,
-                                  ),
-                                ),
-                              ),
-                              if (slots.length > 1)
+                            ),
+                            child: Row(
+                              children: [
                                 AppIcon(
-                                  isSelected
-                                      ? AppIcons.checkCircle
-                                      : AppIcons.circle,
-                                  size: AppSizes.s18,
+                                  AppIcons.clock,
+                                  size: AppSizes.s16,
                                   color: isSelected
                                       ? context.palette.accent
-                                      : context.palette.textSecondary.withValues(alpha: 0.4),
+                                      : context.palette.textSecondary,
                                 ),
-                            ],
+                                const SizedBox(width: AppSizes.s10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        slotStr,
+                                        style: TextStyle(
+                                          fontSize: AppSizes.font14,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                          color: isSelected
+                                              ? context.palette.accent
+                                              : context.palette.textPrimary,
+                                        ),
+                                      ),
+                                      if (slot.maxParticipants > 0) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          isSlotFull
+                                              ? 'Full (${slot.joinedCount}/${slot.maxParticipants})'
+                                              : '${slot.remainingSpots} spots left (${slot.joinedCount}/${slot.maxParticipants})',
+                                          style: TextStyle(
+                                            fontSize: AppSizes.font11,
+                                            fontWeight: FontWeight.w500,
+                                            color: isSlotFull
+                                                ? context.palette.textSecondary
+                                                : context.palette.accent,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                if (isSlotFull)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: context.palette.separator,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'FULL',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  )
+                                else if (slots.length > 1)
+                                  AppIcon(
+                                    isSelected
+                                        ? AppIcons.checkCircle
+                                        : AppIcons.circle,
+                                    size: AppSizes.s18,
+                                    color: isSelected
+                                        ? context.palette.accent
+                                        : context.palette.textSecondary.withValues(alpha: 0.4),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       );
@@ -179,9 +230,12 @@ class _SessionCardState extends ConsumerState<SessionCard> {
                   ],
                   const SizedBox(height: AppSizes.s16),
                   JbbButton(
-                    label: 'Join · \$${session.price.toStringAsFixed(2)}',
-                    onPressed: () =>
-                        Navigator.of(sheetContext).pop(selectedSlot ?? ''),
+                    label: !canConfirm && slots.isNotEmpty && slots.every((s) => s.isFull)
+                        ? 'All slots full'
+                        : 'Join · \$${session.price.toStringAsFixed(2)}',
+                    onPressed: canConfirm && selectedSlot != null
+                        ? () => Navigator.of(sheetContext).pop(selectedSlot ?? '')
+                        : null,
                   ),
                 ],
               ),
@@ -217,7 +271,10 @@ class _SessionCardState extends ConsumerState<SessionCard> {
     final session = widget.session;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     final joined = uid != null && session.joinedUserIds.contains(uid);
-    final full = session.joinedUserIds.length >= session.maxParticipants;
+    final full = (session.resolvedTimeSlots.isNotEmpty &&
+            session.resolvedTimeSlots.every((s) => s.isFull)) ||
+        (session.maxParticipants > 0 &&
+            session.joinedUserIds.length >= session.maxParticipants);
     final role = ref.watch(profileProvider).value?.role;
     final isAdmin = role == 'admin' || role == 'superAdmin';
     return ClipRRect(
@@ -375,13 +432,19 @@ class _SessionCardState extends ConsumerState<SessionCard> {
                                   AppIcon(
                                     AppIcons.clock,
                                     size: AppSizes.s12,
-                                    color: context.palette.accent,
+                                    color: slot.isFull
+                                        ? context.palette.textSecondary
+                                        : context.palette.accent,
                                   ),
                                   const SizedBox(width: AppSizes.s4),
                                   Text(
-                                    '${slot.startTime}–${slot.endTime}',
+                                    slot.maxParticipants > 0
+                                        ? '${slot.startTime}–${slot.endTime} (${slot.joinedCount}/${slot.maxParticipants})'
+                                        : '${slot.startTime}–${slot.endTime}',
                                     style: TextStyle(
-                                      color: context.palette.textSecondary,
+                                      color: slot.isFull
+                                          ? context.palette.textSecondary
+                                          : context.palette.textPrimary,
                                       fontSize: AppSizes.font11,
                                       fontWeight: FontWeight.w500,
                                     ),
