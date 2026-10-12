@@ -118,6 +118,7 @@ class SessionMembersScreen extends ConsumerWidget {
                     }
                     final members = snapshot.data ?? const [];
                     final count = session.joinedUserIds.length;
+                    final showSlot = session.resolvedTimeSlots.length > 1;
 
                     return ListView.builder(
                       padding: const EdgeInsets.all(AppSizes.s16),
@@ -147,6 +148,27 @@ class SessionMembersScreen extends ConsumerWidget {
                                   : null,
                             ),
                             title: Text(display),
+                            subtitle: showSlot &&
+                                    (member.timeSlot?.isNotEmpty ?? false)
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      AppIcon(
+                                        AppIcons.clock,
+                                        size: AppSizes.s14,
+                                        color: context.palette.accent,
+                                      ),
+                                      const SizedBox(width: AppSizes.s4),
+                                      Text(
+                                        member.timeSlot!,
+                                        style: TextStyle(
+                                          fontSize: AppSizes.font12,
+                                          color: context.palette.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : null,
                           );
                         }
                         // Fallback when member profiles cannot be fetched

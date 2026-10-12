@@ -64,7 +64,7 @@ function isPast(row: Row): boolean {
   return end < new Date(new Date().toDateString());
 }
 
-export type SessionMember = { uid: string; fullName: string; childName: string; profilePicUrl: string | null };
+export type SessionMember = { uid: string; fullName: string; childName: string; profilePicUrl: string | null; timeSlot?: string | null };
 
 export function useSessionMembers(sessionId: string, joinedUserIds: string[] = []) {
   const [members, setMembers] = useState<SessionMember[]>([]);
@@ -265,7 +265,10 @@ export function JoinedMembersModal({ session, onClose }: { session: Row; onClose
                       {initial}
                     </div>
                   )}
-                  <span>{displayName}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span>{displayName}</span>
+                    {slots.length > 1 && m.timeSlot && <span className="muted" style={{ fontSize: 12 }}>{m.timeSlot}</span>}
+                  </div>
                 </div>
               );
             })}

@@ -320,15 +320,25 @@ export const getSessionMembers = onCall({ enforceAppCheck, maxInstances: 20 }, a
   const { sessionId } = parsed.data;
   const sessionSnap = await db.doc(`sessions/${sessionId}`).get();
   if (!sessionSnap.exists) throw new HttpsError('not-found', 'Session not found.');
-  const uids: string[] = sessionSnap.data()?.joinedUserIds || [];
+  const sessionData = sessionSnap.data();
+  const uids: string[] = sessionData?.joinedUserIds || [];
   if (!uids.length) return { members: [] };
-  const members: { uid: string; fullName: string; childName: string; profilePicUrl: string | null }[] = [];
+  // Map each joined member to the specific time slot they picked (sessions can offer several
+  // same-day slots), so the admin/member "Joined Members" view can show who's in which slot.
+  const timeSlotByUid = new Map<string, string>();
+  if (Array.isArray(sessionData?.timeSlots)) {
+    for (const slot of sessionData!.timeSlots) {
+      const label = `${slot.startTime}–${slot.endTime}`;
+      for (const uid of Array.isArray(slot.joinedUserIds) ? slot.joinedUserIds : []) timeSlotByUid.set(uid, label);
+    }
+  }
+  const members: { uid: string; fullName: string; childName: string; profilePicUrl: string | null; timeSlot: string | null }[] = [];
   for (let i = 0; i < uids.length; i += 30) {
     const chunk = uids.slice(i, i + 30);
     const snap = await db.collection('users').where(FieldPath.documentId(), 'in', chunk).get();
     snap.forEach(d => {
       const data = d.data();
-      members.push({ uid: d.id, fullName: data.fullName || 'Member', childName: data.childName || '', profilePicUrl: data.profilePicUrl || data.avatarUrl || null });
+      members.push({ uid: d.id, fullName: data.fullName || 'Member', childName: data.childName || '', profilePicUrl: data.profilePicUrl || data.avatarUrl || null, timeSlot: timeSlotByUid.get(d.id) || null });
     });
   }
   return { members };

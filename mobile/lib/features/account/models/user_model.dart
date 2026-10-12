@@ -11,6 +11,7 @@ class UserModel {
     this.profilePicUrl,
     required this.role,
     required this.createdAt,
+    this.timeSlot,
   });
 
   final String uid;
@@ -20,6 +21,10 @@ class UserModel {
   final String? profilePicUrl;
   final String role; // 'admin' | 'trainee'
   final DateTime createdAt;
+  /// Only populated when this model represents a session's joined member
+  /// (from `getSessionMembers`) — the specific time slot they picked, if
+  /// the session offers more than one.
+  final String? timeSlot;
 
   /// The name chosen by the member themselves (participant name); falls
   /// back to the account's full name when they haven't set one.
@@ -33,6 +38,7 @@ class UserModel {
     profilePicUrl: nonEmpty(map['profilePicUrl'] as String?),
     role: map['role'] as String? ?? 'trainee',
     createdAt: readDate(map['createdAt']),
+    timeSlot: map['timeSlot'] as String?,
   );
 
   Map<String, dynamic> toMap() => {
