@@ -18,8 +18,14 @@ class BuyerName extends ConsumerWidget {
           : buyer.childName.trim().isNotEmpty
           ? buyer.childName.trim()
           : '${buyer.fullName ?? ''} ${buyer.lastName ?? ''}'.trim();
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Text(
+          'Loading…',
+          style: TextStyle(fontSize: AppSizes.font13),
+        );
+      }
       return Text(
-        (name ?? '').isNotEmpty ? name! : 'Loading…',
+        (name != null && name.isNotEmpty) ? name : 'Member',
         style: const TextStyle(fontSize: AppSizes.font13),
       );
     },
