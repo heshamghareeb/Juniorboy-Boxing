@@ -69,21 +69,57 @@ class _BookingsState extends ConsumerState<MyBookingsScreen> {
     return false;
   }
 
-String? _safeCurrentUid() {
-  try {
-    return FirebaseAuth.instance.currentUser?.uid;
-  } catch (_) {
-    return null;
+  String? _safeCurrentUid() {
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
+    }
   }
-}
 
-String? _safeCurrentEmail() {
-  try {
-    return FirebaseAuth.instance.currentUser?.email;
-  } catch (_) {
-    return null;
+  String? _safeCurrentEmail() {
+    try {
+      return FirebaseAuth.instance.currentUser?.email;
+    } catch (_) {
+      return null;
+    }
   }
-}
+
+  String _resolveSlotTime({
+    required String userId,
+    required String title,
+    required Booking booking,
+    required List<SessionModel> sessions,
+  }) {
+    if (booking.timeSlot != null && booking.timeSlot!.trim().isNotEmpty) {
+      return booking.timeSlot!.trim();
+    }
+    if (booking.startTime != null && booking.startTime!.trim().isNotEmpty) {
+      if (booking.endTime != null && booking.endTime!.trim().isNotEmpty) {
+        return '${booking.startTime!.trim()} – ${booking.endTime!.trim()}';
+      }
+      return booking.startTime!.trim();
+    }
+    final matching = sessions
+        .where(
+          (s) => s.title.trim().toLowerCase() == title.trim().toLowerCase(),
+        )
+        .firstOrNull;
+    if (matching != null) {
+      for (final slot in matching.timeSlots) {
+        if (slot.joinedUserIds.contains(userId)) {
+          return '${slot.startTime} – ${slot.endTime}';
+        }
+      }
+      if (matching.formattedTimes.isNotEmpty) return matching.formattedTimes;
+      if (matching.startTime.isNotEmpty) {
+        return matching.endTime.isNotEmpty
+            ? '${matching.startTime} – ${matching.endTime}'
+            : matching.startTime;
+      }
+    }
+    return timeLabel(booking.date);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,42 +134,80 @@ String? _safeCurrentEmail() {
     final allSessions = sessionsAsync.value ?? const [];
     final mySessions = uid == null
         ? const <SessionModel>[]
-        : allSessions.where((s) => s.joinedUserIds.contains(uid)).toList();
+        : allSessions.where((s) {
+            if (s.joinedUserIds.contains(uid)) return true;
+            return s.timeSlots.any((slot) => slot.joinedUserIds.contains(uid));
+          }).toList();
 
     final now = DateTime.now();
     final sessionItems = mySessions.where((s) {
-      final upcoming = s.endDate.isAfter(now) || s.startDate.isAfter(now);
+      final upcoming =
+          s.endDate.isAfter(now) ||
+          s.startDate.isAfter(now) ||
+          (s.startDate.year == now.year &&
+              s.startDate.month == now.month &&
+              s.startDate.day == now.day);
       return selected == 0 ? upcoming : !upcoming;
     }).toList();
 
     if (kDebugMode) {
       debugPrint('==================================================');
       debugPrint('[MY_BOOKINGS DEBUG 1] Authentication:');
-      debugPrint('  - FirebaseAuth UID: $fbUid (Email: ${_safeCurrentEmail()})');
+      debugPrint(
+        '  - FirebaseAuth UID: $fbUid (Email: ${_safeCurrentEmail()})',
+      );
       debugPrint('  - AuthProvider UID: $authUid');
       debugPrint('  - Effective UID used: $uid');
 
       debugPrint('[MY_BOOKINGS DEBUG 2] Sessions State:');
-      debugPrint('  - Status: ${sessionsAsync.isLoading ? "LOADING" : sessionsAsync.hasError ? "ERROR: ${sessionsAsync.error}" : "DATA"}');
+      debugPrint(
+        '  - Status: ${sessionsAsync.isLoading
+            ? "LOADING"
+            : sessionsAsync.hasError
+            ? "ERROR: ${sessionsAsync.error}"
+            : "DATA"}',
+      );
       debugPrint('  - Total Sessions in DB: ${allSessions.length}');
       debugPrint('  - Sessions joined by user: ${mySessions.length}');
       for (final s in allSessions) {
-        debugPrint('    * Session "${s.title}": joinedUserIds: ${s.joinedUserIds} (Start: ${s.startDate}, End: ${s.endDate})');
+        debugPrint(
+          '    * Session "${s.title}": joinedUserIds: ${s.joinedUserIds} (Start: ${s.startDate}, End: ${s.endDate})',
+        );
       }
 
       debugPrint('[MY_BOOKINGS DEBUG 3] Bookings State:');
-      debugPrint('  - Status: ${bookingsAsync.isLoading ? "LOADING" : bookingsAsync.hasError ? "ERROR: ${bookingsAsync.error}" : "DATA"}');
-      debugPrint('  - Total Bookings for user: ${bookingsAsync.value?.length ?? 0}');
+      debugPrint(
+        '  - Status: ${bookingsAsync.isLoading
+            ? "LOADING"
+            : bookingsAsync.hasError
+            ? "ERROR: ${bookingsAsync.error}"
+            : "DATA"}',
+      );
+      debugPrint(
+        '  - Total Bookings for user: ${bookingsAsync.value?.length ?? 0}',
+      );
 
       debugPrint('[MY_BOOKINGS DEBUG 4] Payments & Store Orders:');
-      debugPrint('  - Status: ${paymentsAsync.isLoading ? "LOADING" : paymentsAsync.hasError ? "ERROR: ${paymentsAsync.error}" : "DATA"}');
+      debugPrint(
+        '  - Status: ${paymentsAsync.isLoading
+            ? "LOADING"
+            : paymentsAsync.hasError
+            ? "ERROR: ${paymentsAsync.error}"
+            : "DATA"}',
+      );
       final allPayments = paymentsAsync.value ?? const <Payment>[];
-      final storeOrders = allPayments.where((p) => p.productId != null).toList();
-      final membershipPacks = allPayments.where((p) => p.membershipPlanId != null).toList();
+      final storeOrders = allPayments
+          .where((p) => p.productId != null)
+          .toList();
+      final membershipPacks = allPayments
+          .where((p) => p.membershipPlanId != null)
+          .toList();
       debugPrint('  - Total Payments count: ${allPayments.length}');
       debugPrint('  - Store Orders count: ${storeOrders.length}');
       for (final o in storeOrders) {
-        debugPrint('    * Product: "${o.productName}" | Status: "${o.status}" | Size: "${o.size}" | Amount: \$${(o.amount / 100).toStringAsFixed(2)}');
+        debugPrint(
+          '    * Product: "${o.productName}" | Status: "${o.status}" | Size: "${o.size}" | Amount: \$${(o.amount / 100).toStringAsFixed(2)}',
+        );
       }
       debugPrint('  - Membership Packs count: ${membershipPacks.length}');
       debugPrint('==================================================');
@@ -187,7 +261,7 @@ String? _safeCurrentEmail() {
               ),
               const SizedBox(height: AppSizes.s16),
             ] else ...[
-              const _ActiveMembershipStatusCard(),
+              // const _ActiveMembershipStatusCard(),
             ],
             const _MembershipPurchases(),
             const _StorePurchases(),
@@ -211,7 +285,9 @@ String? _safeCurrentEmail() {
                       return selected == 0 ? upcoming : !upcoming;
                     }).toList();
                     if (items.isEmpty && sessionItems.isEmpty) {
-                      return JbbEmptyState(message: AppStrings.noBookingsHereYet);
+                      return JbbEmptyState(
+                        message: AppStrings.noBookingsHereYet,
+                      );
                     }
                     return Column(
                       children: [
@@ -226,7 +302,11 @@ String? _safeCurrentEmail() {
                                       .value
                                       ?.cancellationPolicyHours ??
                                   24;
-                              final allowed = canCancelBooking(b, DateTime.now(), hours);
+                              final allowed = canCancelBooking(
+                                b,
+                                DateTime.now(),
+                                hours,
+                              );
                               return Dismissible(
                                 key: ValueKey(b.id),
                                 direction: allowed
@@ -241,54 +321,166 @@ String? _safeCurrentEmail() {
                                 ),
                                 child: JbbCard(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        b.className.isEmpty
-                                            ? AppStrings.uiBoxingClass
-                                            : b.className,
-                                        style: TextStyle(
-                                          fontSize: AppSizes.font18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      if ((b.category ?? '').isNotEmpty)
-                                        Text(
-                                          b.category!.toUpperCase(),
-                                          style: TextStyle(
-                                            color: context.palette.accent,
-                                            fontSize: AppSizes.font11,
-                                            fontWeight: FontWeight.bold,
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            width: AppSizes.s40,
+                                            height: AppSizes.s40,
+                                            decoration: BoxDecoration(
+                                              color: context.palette.accent
+                                                  .withValues(alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    AppSizes.radius10,
+                                                  ),
+                                            ),
+                                            child: Center(
+                                              child: AppIcon(
+                                                AppIcons.boxingGlove,
+                                                color: context.palette.accent,
+                                                size: AppSizes.s22,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      SizedBox(height: AppSizes.s8),
-                                      Text(
-                                        '${dateLabel(b.date)} · ${timeLabel(b.date)} PT',
+                                          const SizedBox(width: AppSizes.s12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  b.className.isEmpty
+                                                      ? AppStrings.uiBoxingClass
+                                                      : b.className,
+                                                  style: const TextStyle(
+                                                    fontSize: AppSizes.font16,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                if ((b.category ?? '')
+                                                    .isNotEmpty)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          top: 2,
+                                                        ),
+                                                    child: Text(
+                                                      b.category!.toUpperCase(),
+                                                      style: TextStyle(
+                                                        color: context
+                                                            .palette
+                                                            .accent,
+                                                        fontSize:
+                                                            AppSizes.font11,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                const SizedBox(
+                                                  height: AppSizes.s6,
+                                                ),
+                                                Row(
+                                                  children: [
+                                                    Icon(
+                                                      Icons.access_time,
+                                                      size: 14,
+                                                      color: context
+                                                          .palette
+                                                          .textSecondary,
+                                                    ),
+                                                    const SizedBox(
+                                                      width: AppSizes.s4,
+                                                    ),
+                                                    Expanded(
+                                                      child: Text(
+                                                        '${dateLabel(b.date)} · ${_resolveSlotTime(userId: uid ?? '', title: b.className, booking: b, sessions: allSessions)}',
+                                                        style: TextStyle(
+                                                          color: context
+                                                              .palette
+                                                              .textSecondary,
+                                                          fontSize:
+                                                              AppSizes.font13,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      SizedBox(height: AppSizes.s8),
-                                      Text(
-                                        b.status.toString().toUpperCase(),
-                                        style: TextStyle(
-                                          color: b.status == 'cancelled'
-                                              ? context.palette.accent
-                                              : context.palette.success,
-                                          fontSize: AppSizes.font12,
-                                        ),
+                                      const SizedBox(height: AppSizes.s10),
+                                      const Divider(height: 1),
+                                      const SizedBox(height: AppSizes.s8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: AppSizes.s8,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  b.status.toLowerCase() ==
+                                                      'confirmed'
+                                                  ? Colors.green.withValues(
+                                                      alpha: 0.15,
+                                                    )
+                                                  : context.palette.accent
+                                                        .withValues(
+                                                          alpha: 0.15,
+                                                        ),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    AppSizes.radius6,
+                                                  ),
+                                            ),
+                                            child: Text(
+                                              b.status.toUpperCase(),
+                                              style: TextStyle(
+                                                color:
+                                                    b.status.toLowerCase() ==
+                                                        'confirmed'
+                                                    ? Colors.green.shade700
+                                                    : context.palette.accent,
+                                                fontSize: AppSizes.font11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          if (allowed)
+                                            TextButton(
+                                              onPressed: pending.contains(b.id)
+                                                  ? null
+                                                  : () => cancel(b),
+                                              child: const Text(
+                                                AppStrings.cancelBooking,
+                                              ),
+                                            ),
+                                        ],
                                       ),
-                                      if (allowed)
-                                        TextButton(
-                                          onPressed: pending.contains(b.id)
-                                              ? null
-                                              : () => cancel(b),
-                                          child: Text(AppStrings.cancelBooking),
-                                        ),
-                                      if (!allowed && b.status == 'confirmed')
+                                      if (!allowed &&
+                                          b.status.toLowerCase() == 'confirmed')
                                         Padding(
-                                          padding: EdgeInsets.only(top: AppSizes.s8),
+                                          padding: const EdgeInsets.only(
+                                            top: AppSizes.s4,
+                                          ),
                                           child: Text(
-                                            AppStrings.uiForLateChangesContactTheGym,
+                                            AppStrings
+                                                .uiForLateChangesContactTheGym,
                                             style: TextStyle(
-                                              color: context.palette.textSecondary,
+                                              color:
+                                                  context.palette.textSecondary,
+                                              fontSize: AppSizes.font11,
                                             ),
                                           ),
                                         ),
@@ -332,6 +524,7 @@ String? _safeCurrentEmail() {
   }
 }
 
+// ignore: unused_element
 class _ActiveMembershipStatusCard extends ConsumerWidget {
   const _ActiveMembershipStatusCard();
 
@@ -372,7 +565,9 @@ class _ActiveMembershipStatusCard extends ConsumerWidget {
                 child: AppIcon(
                   AppIcons.crown,
                   size: AppSizes.s20,
-                  color: hasCredits ? Colors.white : context.palette.textSecondary,
+                  color: hasCredits
+                      ? Colors.white
+                      : context.palette.textSecondary,
                 ),
               ),
             ),
@@ -406,16 +601,16 @@ class _ActiveMembershipStatusCard extends ConsumerWidget {
                 ],
               ),
             ),
-            TextButton(
-              onPressed: () => context.safeNavigate(AppRoutes.membership),
-              child: Text(
-                hasCredits ? 'Plans' : 'Buy Pack',
-                style: TextStyle(
-                  color: context.palette.accent,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            // TextButton(
+            //   onPressed: () => context.safeNavigate(AppRoutes.membership),
+            //   child: Text(
+            //     hasCredits ? 'Plans' : 'Buy Pack',
+            //     style: TextStyle(
+            //       color: context.palette.accent,
+            //       fontWeight: FontWeight.bold,
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),
@@ -510,16 +705,20 @@ class _StorePurchases extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activeProducts = ref.watch(productsProvider).value ?? const [];
     final adminProducts = ref.watch(productsAdminProvider).value ?? const [];
-    final allProducts = adminProducts.isNotEmpty ? adminProducts : activeProducts;
+    final allProducts = adminProducts.isNotEmpty
+        ? adminProducts
+        : activeProducts;
 
     final purchases =
         (ref.watch(paymentsProvider).value ?? const <Payment>[])
             .where(
               (p) =>
                   p.productId != null &&
-                  !['cancelled', 'canceled', 'refunded'].contains(
-                    p.status.toLowerCase(),
-                  ),
+                  ![
+                    'cancelled',
+                    'canceled',
+                    'refunded',
+                  ].contains(p.status.toLowerCase()),
             )
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -587,10 +786,11 @@ class _StorePurchases extends ConsumerWidget {
                 final imageUrl = (product?.imageUrl?.isNotEmpty == true)
                     ? product!.imageUrl
                     : (product?.imageUrls.isNotEmpty == true)
-                        ? product!.imageUrls.first
-                        : null;
+                    ? product!.imageUrls.first
+                    : null;
 
-                final hasSize = payment.size != null && payment.size!.isNotEmpty;
+                final hasSize =
+                    payment.size != null && payment.size!.isNotEmpty;
                 final productName = payment.productName?.isNotEmpty == true
                     ? payment.productName!
                     : product?.name ?? AppStrings.uiProduct;
@@ -697,8 +897,7 @@ class _StorePurchases extends ConsumerWidget {
                                           ),
                                           decoration: BoxDecoration(
                                             color: context.palette.surface,
-                                            borderRadius:
-                                                BorderRadius.circular(
+                                            borderRadius: BorderRadius.circular(
                                               AppSizes.radius4,
                                             ),
                                             border: Border.all(
@@ -719,8 +918,7 @@ class _StorePurchases extends ConsumerWidget {
                                         dateLabel(payment.createdAt),
                                         style: TextStyle(
                                           fontSize: AppSizes.font12,
-                                          color:
-                                              context.palette.textSecondary,
+                                          color: context.palette.textSecondary,
                                         ),
                                       ),
                                     ],
@@ -768,8 +966,9 @@ class _StorePurchases extends ConsumerWidget {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: context.palette.success
-                                          .withValues(alpha: 0.45),
+                                      color: context.palette.success.withValues(
+                                        alpha: 0.45,
+                                      ),
                                       blurRadius: 4,
                                       spreadRadius: 1,
                                     ),
@@ -834,10 +1033,8 @@ class _JoinedSessionCard extends StatelessWidget {
       child: JbbCard(
         child: InkWell(
           borderRadius: BorderRadius.circular(AppSizes.radius12),
-          onTap: () => context.safeNavigate(
-            AppRoutes.sessionMembers,
-            extra: session,
-          ),
+          onTap: () =>
+              context.safeNavigate(AppRoutes.sessionMembers, extra: session),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
