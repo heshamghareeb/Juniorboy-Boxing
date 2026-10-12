@@ -22,7 +22,7 @@ import '../../../store/presentation/screens/store_screen.dart';
 import '../providers/admin_provider.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_orders_screen.dart';
-import 'admin_subscriptions_screen.dart';
+// import 'admin_subscriptions_screen.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
@@ -271,10 +271,7 @@ class _GymInfoSectionState extends ConsumerState<_GymInfoSection> {
       streetName.text = parsed.streetName;
       city.text = parsed.city;
       country.text = parsed.country;
-      final parts = (settings.address ?? '')
-          .split(',')
-          .map((s) => s.trim())
-          .toList();
+      final parts = (settings.address ?? '').split(',').map((s) => s.trim()).toList();
       zipCode.text = settings.zipCode ?? (parts.length > 3 ? parts[2] : '');
       phone.text = settings.phone ?? '';
       loaded = true;
@@ -386,3 +383,4 @@ class _SocialLinksSectionState extends ConsumerState<_SocialLinksSection> {
     );
   }
 }
+
