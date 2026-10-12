@@ -451,7 +451,18 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
                           decoration: InputDecoration(
                             labelText: 'Max spots for this hour',
                             hintText: 'e.g. 5',
-                            prefixIcon: const AppIcon(AppIcons.user, size: 18),
+                            prefixIconConstraints: const BoxConstraints(
+                              minWidth: 38,
+                              minHeight: 20,
+                            ),
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.only(left: 12, right: 8),
+                              child: AppIcon(
+                                AppIcons.user,
+                                size: 16,
+                                color: context.palette.textSecondary,
+                              ),
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(AppSizes.radius8),
                             ),
