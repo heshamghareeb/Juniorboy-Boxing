@@ -7,6 +7,7 @@ import '../../../booking/domain/booking.dart';
 import '../../../membership/domain/membership_plan.dart';
 import '../../../payments/domain/payment.dart';
 import '../../../home/domain/home_ad.dart';
+import '../../domain/staff_member.dart';
 
 final adminRepositoryProvider = Provider<AdminRepository>(
   (ref) => AdminRepositoryImpl(AdminRemoteDataSource()),
@@ -22,4 +23,7 @@ final adminOrdersProvider = StreamProvider<List<Payment>>(
 );
 final adminBookingsProvider = StreamProvider<List<Booking>>(
   (ref) => ref.watch(adminRepositoryProvider).bookings(),
+);
+final adminStaffProvider = StreamProvider<List<StaffMember>>(
+  (ref) => ref.watch(adminRepositoryProvider).staff(),
 );

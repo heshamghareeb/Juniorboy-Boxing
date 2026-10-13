@@ -68,6 +68,12 @@ class AdminDashboardScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              if (ref.watch(profileProvider).value?.role == 'superAdmin')
+                SettingsRow(
+                  icon: AppIcons.admin,
+                  title: 'Staff & Permissions',
+                  onTap: () => context.safeNavigate(AppRoutes.adminStaff),
+                ),
             ],
           ),
           SizedBox(height: AppSizes.s24),

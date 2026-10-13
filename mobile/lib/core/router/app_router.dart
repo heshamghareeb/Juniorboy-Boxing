@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/screens/admin_staff_screen.dart';
 import '../../features/admin/presentation/screens/ad_editor_screen.dart';
 import '../../features/sessions/presentation/screens/session_editor_screen.dart';
 import '../../features/sessions/presentation/screens/session_members_screen.dart';
@@ -161,6 +162,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.reviews,
         builder: (c, s) => const ReviewsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminStaff,
+        builder: (c, s) => const AdminStaffScreen(),
       ),
       GoRoute(
         path: AppRoutes.adminAdEditor,

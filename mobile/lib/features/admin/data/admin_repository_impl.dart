@@ -11,6 +11,7 @@ import '../domain/admin_repository.dart';
 import 'admin_remote_data_source.dart';
 import '../../home/domain/home_ad.dart';
 import '../../home/data/home_ad_model.dart';
+import '../domain/staff_member.dart';
 
 class AdminRepositoryImpl implements AdminRepository {
   AdminRepositoryImpl(this.source);
@@ -74,4 +75,24 @@ class AdminRepositoryImpl implements AdminRepository {
   @override
   Future<void> cancelBookingAsAdmin(String id, String reason) =>
       source.cancelBookingAsAdmin(id, reason);
+  @override
+  Stream<List<StaffMember>> staff() => source.staff().map(
+    (rows) => rows.map<StaffMember>(StaffMember.fromMap).toList(),
+  );
+  @override
+  Future<List<StaffMember>> listStaff() => source.listStaff();
+  @override
+  Future<void> upsertStaff({
+    required String email,
+    required String displayName,
+    required String role,
+    required Map<String, bool> permissions,
+  }) => source.upsertStaff(
+    email: email,
+    displayName: displayName,
+    role: role,
+    permissions: permissions,
+  );
+  @override
+  Future<void> removeStaff(String uid) => source.removeStaff(uid);
 }

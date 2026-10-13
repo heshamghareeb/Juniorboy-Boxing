@@ -5,6 +5,7 @@ import '../../membership/domain/membership_plan.dart';
 import '../../payments/domain/payment.dart';
 import '../../profile/domain/member.dart';
 import '../../home/domain/home_ad.dart';
+import 'staff_member.dart';
 
 abstract class AdminRepository {
   String newId();
@@ -29,4 +30,13 @@ abstract class AdminRepository {
   Future<void> deletePayment(String paymentId);
   Future<void> markAttendance(String bookingId, String status);
   Future<void> cancelBookingAsAdmin(String bookingId, String reason);
+  Stream<List<StaffMember>> staff();
+  Future<List<StaffMember>> listStaff();
+  Future<void> upsertStaff({
+    required String email,
+    required String displayName,
+    required String role,
+    required Map<String, bool> permissions,
+  });
+  Future<void> removeStaff(String uid);
 }

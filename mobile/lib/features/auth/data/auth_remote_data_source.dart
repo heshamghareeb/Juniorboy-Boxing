@@ -59,8 +59,10 @@ class AuthRemoteDataSource {
     const charset =
         '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
     final random = Random.secure();
-    return List.generate(length, (_) => charset[random.nextInt(charset.length)])
-        .join();
+    return List.generate(
+      length,
+      (_) => charset[random.nextInt(charset.length)],
+    ).join();
   }
 
   Future<void> appleSignIn() async {
@@ -91,10 +93,10 @@ class AuthRemoteDataSource {
 
     final givenName = appleCredential.givenName?.trim() ?? '';
     final familyName = appleCredential.familyName?.trim() ?? '';
-    final fullName = [givenName, familyName]
-        .where((s) => s.isNotEmpty)
-        .join(' ')
-        .trim();
+    final fullName = [
+      givenName,
+      familyName,
+    ].where((s) => s.isNotEmpty).join(' ').trim();
 
     if (auth.currentUser?.isAnonymous == true) {
       try {
@@ -113,13 +115,10 @@ class AuthRemoteDataSource {
       try {
         await FirebaseFirestore.instance
             .doc('users/${auth.currentUser!.uid}')
-            .set(
-              {
-                'fullName': fullName,
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true),
-            );
+            .set({
+              'fullName': fullName,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
       } catch (_) {}
     }
   }
@@ -165,14 +164,11 @@ class AuthRemoteDataSource {
       try {
         await FirebaseFirestore.instance
             .doc('users/${credential.user!.uid}')
-            .set(
-              {
-                'fullName': cleanName,
-                'email': cleanEmail,
-                'updatedAt': FieldValue.serverTimestamp(),
-              },
-              SetOptions(merge: true),
-            );
+            .set({
+              'fullName': cleanName,
+              'email': cleanEmail,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
       } catch (_) {}
     }
     await initializeProfile();

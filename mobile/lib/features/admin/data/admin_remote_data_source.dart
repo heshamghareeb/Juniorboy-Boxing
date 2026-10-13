@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import '../../../core/data/cached_repository.dart';
 import '../../profile/data/member_model.dart';
 import '../../profile/domain/member.dart';
+import '../domain/staff_member.dart';
 
 /// Admin-only data access for the in-app dashboard: membership plan
 /// prices and class schedule times. Firestore rules already restrict
@@ -112,4 +113,39 @@ class AdminRemoteDataSource extends CachedRepository {
         'bookingId': bookingId,
         'reason': reason,
       });
+
+  Stream<List<Map<String, dynamic>>> staff() => watchQuery(
+    db
+        .collection('users')
+        .where('role', whereIn: ['admin', 'superAdmin']),
+    'admin_staff',
+  );
+
+  Future<List<StaffMember>> listStaff() async {
+    final result = await FirebaseFunctions.instance
+        .httpsCallable('listStaff')
+        .call();
+    final data = result.data;
+    final rawList = data is Map ? data['staff'] as List<dynamic>? ?? [] : [];
+    return rawList
+        .whereType<Map>()
+        .map((m) => StaffMember.fromMap(Map<String, dynamic>.from(m)))
+        .toList();
+  }
+
+  Future<void> upsertStaff({
+    required String email,
+    required String displayName,
+    required String role,
+    required Map<String, bool> permissions,
+  }) => FirebaseFunctions.instance.httpsCallable('upsertStaff').call({
+    'email': email,
+    'displayName': displayName,
+    'role': role,
+    'permissions': permissions,
+  });
+
+  Future<void> removeStaff(String uid) => FirebaseFunctions.instance
+      .httpsCallable('removeStaff')
+      .call({'uid': uid});
 }

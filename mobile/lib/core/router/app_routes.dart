@@ -12,6 +12,7 @@ abstract final class AppRoutes {
   static const payments = '/payments';
   static const reviews = '/reviews';
   static const admin = '/admin';
+  static const adminStaff = '/admin/staff';
   static const adminAdEditor = '/admin/ad-editor';
   static const adminSessionEditor = '/admin/session-editor';
   static const sessionMembers = '/session-members';
