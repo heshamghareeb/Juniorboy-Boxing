@@ -1,14 +1,15 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function active() { return request.auth != null && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isActive == true; }
-    function admin() { return active() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superAdmin']; }
+    function signedIn() { return request.auth != null; }
+    function active() { return signedIn() && (!firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.isActive != false); }
+    function admin() { return signedIn() && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superAdmin']; }
     function image() { return request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp)'); }
     function video() { return request.resource.size < 80 * 1024 * 1024 && request.resource.contentType.matches('video/(mp4|quicktime|webm)'); }
     match /avatars/{uid}/{file} {
-      allow read: if active() && (request.auth.uid == uid || admin());
-      allow create, update: if active() && request.auth.uid == uid && image();
-      allow delete: if active() && (request.auth.uid == uid || admin());
+      allow read: if signedIn();
+      allow create, update: if signedIn() && request.auth.uid == uid && image();
+      allow delete: if signedIn() && (request.auth.uid == uid || admin());
     }
     match /gym/{file=**} {
       allow read: if true;

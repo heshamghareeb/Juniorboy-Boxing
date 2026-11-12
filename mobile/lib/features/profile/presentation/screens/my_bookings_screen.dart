@@ -292,7 +292,10 @@ class _BookingsState extends ConsumerState<MyBookingsScreen> {
                     return Column(
                       children: [
                         for (final session in sessionItems)
-                          _JoinedSessionCard(session: session),
+                          _JoinedSessionCard(
+                            session: session,
+                            isPast: selected == 1,
+                          ),
                         for (final b in items) ...[
                           Builder(
                             builder: (context) {
@@ -307,6 +310,22 @@ class _BookingsState extends ConsumerState<MyBookingsScreen> {
                                 DateTime.now(),
                                 hours,
                               );
+                              final isPast = selected == 1;
+                              final statusLower = b.status.toLowerCase();
+                              final displayStatus = isPast && statusLower == 'confirmed'
+                                  ? 'COMPLETED'
+                                  : b.status.toUpperCase();
+                              final statusColor = isPast && statusLower == 'confirmed'
+                                  ? context.palette.textSecondary
+                                  : (statusLower == 'confirmed' || statusLower == 'completed'
+                                      ? Colors.green.shade700
+                                      : context.palette.accent);
+                              final statusBg = isPast && statusLower == 'confirmed'
+                                  ? context.palette.surface
+                                  : (statusLower == 'confirmed' || statusLower == 'completed'
+                                      ? Colors.green.withValues(alpha: 0.15)
+                                      : context.palette.accent.withValues(alpha: 0.15));
+
                               return Dismissible(
                                 key: ValueKey(b.id),
                                 direction: allowed
@@ -429,29 +448,21 @@ class _BookingsState extends ConsumerState<MyBookingsScreen> {
                                               vertical: 3,
                                             ),
                                             decoration: BoxDecoration(
-                                              color:
-                                                  b.status.toLowerCase() ==
-                                                      'confirmed'
-                                                  ? Colors.green.withValues(
-                                                      alpha: 0.15,
-                                                    )
-                                                  : context.palette.accent
-                                                        .withValues(
-                                                          alpha: 0.15,
-                                                        ),
+                                              color: statusBg,
                                               borderRadius:
                                                   BorderRadius.circular(
-                                                    AppSizes.radius6,
-                                                  ),
+                                                AppSizes.radius6,
+                                              ),
+                                              border: isPast && statusLower == 'confirmed'
+                                                  ? Border.all(
+                                                      color: context.palette.separator,
+                                                    )
+                                                  : null,
                                             ),
                                             child: Text(
-                                              b.status.toUpperCase(),
+                                              displayStatus,
                                               style: TextStyle(
-                                                color:
-                                                    b.status.toLowerCase() ==
-                                                        'confirmed'
-                                                    ? Colors.green.shade700
-                                                    : context.palette.accent,
+                                                color: statusColor,
                                                 fontSize: AppSizes.font11,
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -468,8 +479,9 @@ class _BookingsState extends ConsumerState<MyBookingsScreen> {
                                             ),
                                         ],
                                       ),
-                                      if (!allowed &&
-                                          b.status.toLowerCase() == 'confirmed')
+                                      if (!isPast &&
+                                          !allowed &&
+                                          statusLower == 'confirmed')
                                         Padding(
                                           padding: const EdgeInsets.only(
                                             top: AppSizes.s4,
@@ -478,8 +490,7 @@ class _BookingsState extends ConsumerState<MyBookingsScreen> {
                                             AppStrings
                                                 .uiForLateChangesContactTheGym,
                                             style: TextStyle(
-                                              color:
-                                                  context.palette.textSecondary,
+                                              color: context.palette.textSecondary,
                                               fontSize: AppSizes.font11,
                                             ),
                                           ),
@@ -499,7 +510,10 @@ class _BookingsState extends ConsumerState<MyBookingsScreen> {
                       return Column(
                         children: [
                           for (final session in sessionItems)
-                            _JoinedSessionCard(session: session),
+                            _JoinedSessionCard(
+                              session: session,
+                              isPast: selected == 1,
+                            ),
                         ],
                       );
                     }
@@ -512,7 +526,10 @@ class _BookingsState extends ConsumerState<MyBookingsScreen> {
                       ? Column(
                           children: [
                             for (final session in sessionItems)
-                              _JoinedSessionCard(session: session),
+                              _JoinedSessionCard(
+                                session: session,
+                                isPast: selected == 1,
+                              ),
                           ],
                         )
                       : const JbbLoading(),
@@ -624,9 +641,13 @@ class _MembershipPurchases extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(profileProvider).value;
     final plans = ref.watch(plansProvider).value ?? const [];
+    final authUid = ref.watch(authProvider).value?.uid;
+    final fbUid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = user?.id ?? fbUid ?? authUid;
+
     final purchases =
         (ref.watch(paymentsProvider).value ?? const <Payment>[])
-            .where((p) => p.membershipPlanId != null && p.status == 'completed')
+            .where((p) => p.userId == uid && p.membershipPlanId != null && p.status == 'completed')
             .toList()
           ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     if (user == null || purchases.isEmpty) return const SizedBox.shrink();
@@ -698,30 +719,100 @@ class _MembershipPurchases extends ConsumerWidget {
   }
 }
 
-class _StorePurchases extends ConsumerWidget {
+class _StorePurchases extends ConsumerStatefulWidget {
   const _StorePurchases();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_StorePurchases> createState() => _StorePurchasesState();
+}
+
+class _StorePurchasesState extends ConsumerState<_StorePurchases> {
+  final pending = <String>{};
+
+  Future<void> _completePendingOrder(Payment payment) async {
+    if (payment.productId == null) return;
+    setState(() => pending.add(payment.id));
+    try {
+      final message = await ref.read(productRepositoryProvider).purchaseProduct(
+            payment.productId!,
+            size: payment.size,
+          );
+      ref.invalidate(paymentsProvider);
+      if (mounted) showMessage(context, message);
+    } catch (e) {
+      if (mounted) showMessage(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => pending.remove(payment.id));
+    }
+  }
+
+  Future<void> _deletePendingOrder(Payment payment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Incomplete Order?'),
+        content: Text(
+          'Are you sure you want to remove this incomplete order for ${payment.productName ?? "this product"}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: ctx.palette.accent,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => pending.add(payment.id));
+    try {
+      await ref.read(paymentsRepositoryProvider).cancelPendingOrder(payment.id);
+      ref.invalidate(paymentsProvider);
+      if (mounted) {
+        showToast(context, 'Incomplete order removed.');
+      }
+    } catch (e) {
+      if (mounted) showMessage(context, friendlyError(e));
+    } finally {
+      if (mounted) setState(() => pending.remove(payment.id));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final activeProducts = ref.watch(productsProvider).value ?? const [];
     final adminProducts = ref.watch(productsAdminProvider).value ?? const [];
     final allProducts = adminProducts.isNotEmpty
         ? adminProducts
         : activeProducts;
 
-    final purchases =
-        (ref.watch(paymentsProvider).value ?? const <Payment>[])
-            .where(
-              (p) =>
-                  p.productId != null &&
-                  ![
-                    'cancelled',
-                    'canceled',
-                    'refunded',
-                  ].contains(p.status.toLowerCase()),
-            )
-            .toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final authUid = ref.watch(authProvider).value?.uid;
+    final fbUid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = fbUid ?? authUid;
+
+    final paymentsAsync = ref.watch(paymentsProvider);
+    final purchases = (paymentsAsync.value ?? const <Payment>[])
+        .where(
+          (p) =>
+              p.userId == uid &&
+              p.productId != null &&
+              ![
+                'cancelled',
+                'canceled',
+                'refunded',
+              ].contains(p.status.toLowerCase()),
+        )
+        .toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
     if (purchases.isEmpty) return const SizedBox.shrink();
 
@@ -794,6 +885,9 @@ class _StorePurchases extends ConsumerWidget {
                 final productName = payment.productName?.isNotEmpty == true
                     ? payment.productName!
                     : product?.name ?? AppStrings.uiProduct;
+
+                final isPending = payment.status.toLowerCase() == 'pending';
+                final isBusy = pending.contains(payment.id);
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: AppSizes.s12),
@@ -944,16 +1038,20 @@ class _StorePurchases extends ConsumerWidget {
                             vertical: AppSizes.s8,
                           ),
                           decoration: BoxDecoration(
-                            color: context.palette.surface.withValues(
-                              alpha: 0.8,
-                            ),
+                            color: isPending
+                                ? Colors.amber.withValues(alpha: 0.12)
+                                : context.palette.surface.withValues(
+                                    alpha: 0.8,
+                                  ),
                             borderRadius: BorderRadius.circular(
                               AppSizes.radius8,
                             ),
                             border: Border.all(
-                              color: context.palette.separator.withValues(
-                                alpha: 0.6,
-                              ),
+                              color: isPending
+                                  ? Colors.amber.withValues(alpha: 0.45)
+                                  : context.palette.separator.withValues(
+                                      alpha: 0.6,
+                                    ),
                             ),
                           ),
                           child: Row(
@@ -962,11 +1060,16 @@ class _StorePurchases extends ConsumerWidget {
                                 width: 8,
                                 height: 8,
                                 decoration: BoxDecoration(
-                                  color: context.palette.success,
+                                  color: isPending
+                                      ? Colors.amber
+                                      : context.palette.success,
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: context.palette.success.withValues(
+                                      color: (isPending
+                                              ? Colors.amber
+                                              : context.palette.success)
+                                          .withValues(
                                         alpha: 0.45,
                                       ),
                                       blurRadius: 4,
@@ -978,17 +1081,22 @@ class _StorePurchases extends ConsumerWidget {
                               const SizedBox(width: AppSizes.s8),
                               Expanded(
                                 child: Text(
-                                  payment.estimatedDeliveryDate != null
-                                      ? 'Pickup scheduled: ${dateLabel(payment.estimatedDeliveryDate!)}'
-                                      : 'Ready for pickup at gym 🥊',
+                                  isPending
+                                      ? 'Payment Incomplete / Cancelled'
+                                      : (payment.estimatedDeliveryDate != null
+                                          ? 'Pickup scheduled: ${dateLabel(payment.estimatedDeliveryDate!)}'
+                                          : 'Ready for pickup at gym 🥊'),
                                   style: TextStyle(
-                                    color: context.palette.textPrimary,
+                                    color: isPending
+                                        ? Colors.amber.shade300
+                                        : context.palette.textPrimary,
                                     fontSize: AppSizes.font12,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
-                              if (payment.deliveryNote != null &&
+                              if (!isPending &&
+                                  payment.deliveryNote != null &&
                                   payment.deliveryNote!.isNotEmpty)
                                 Text(
                                   payment.deliveryNote!,
@@ -1000,6 +1108,70 @@ class _StorePurchases extends ConsumerWidget {
                             ],
                           ),
                         ),
+                        if (isPending) ...[
+                          const SizedBox(height: AppSizes.s10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FilledButton.icon(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: context.palette.accent,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: AppSizes.s10,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        AppSizes.radius8,
+                                      ),
+                                    ),
+                                  ),
+                                  onPressed: isBusy
+                                      ? null
+                                      : () => _completePendingOrder(payment),
+                                  icon: isBusy
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.payment, size: 16),
+                                  label: const Text(
+                                    'Complete Payment',
+                                    style: TextStyle(
+                                      fontSize: AppSizes.font13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSizes.s8),
+                              IconButton(
+                                style: IconButton.styleFrom(
+                                  foregroundColor: Colors.redAccent,
+                                  backgroundColor: context.palette.surface,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      AppSizes.radius8,
+                                    ),
+                                    side: BorderSide(
+                                      color: context.palette.separator
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                ),
+                                tooltip: 'Delete incomplete order',
+                                onPressed: isBusy
+                                    ? null
+                                    : () => _deletePendingOrder(payment),
+                                icon: const Icon(Icons.delete_outline, size: 20),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -1023,8 +1195,12 @@ class _StorePurchases extends ConsumerWidget {
 }
 
 class _JoinedSessionCard extends StatelessWidget {
-  const _JoinedSessionCard({required this.session});
+  const _JoinedSessionCard({
+    required this.session,
+    this.isPast = false,
+  });
   final SessionModel session;
+  final bool isPast;
 
   @override
   Widget build(BuildContext context) {
@@ -1104,15 +1280,19 @@ class _JoinedSessionCard extends StatelessWidget {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: context.palette.success,
+                          color: isPast
+                              ? context.palette.textSecondary
+                              : context.palette.success,
                           shape: BoxShape.circle,
                         ),
                       ),
                       const SizedBox(width: AppSizes.s6),
                       Text(
-                        'ENROLLED',
+                        isPast ? 'COMPLETED' : 'ENROLLED',
                         style: TextStyle(
-                          color: context.palette.success,
+                          color: isPast
+                              ? context.palette.textSecondary
+                              : context.palette.success,
                           fontWeight: FontWeight.bold,
                           fontSize: AppSizes.font12,
                         ),

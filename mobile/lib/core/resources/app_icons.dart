@@ -27,6 +27,7 @@ abstract final class AppIcons {
   static const document = '$_dir/ic_terms_doc.svg';
   static const fastForward = '$_dir/ic_fast_forward.svg';
   static const gavel = '$_dir/ic_gavel.svg';
+  static const heart = '$_dir/ic_heart.svg';
   static const imagePlus = '$_dir/ic_image_plus.svg';
   static const info = '$_dir/ic_info.svg';
   static const location = '$_dir/ic_location_pin.svg';

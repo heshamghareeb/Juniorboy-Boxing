@@ -5,7 +5,7 @@ export { createBooking, cancelBooking, markBookingCompleted, deductSession, canc
 export { generateWeeklySchedule, generateScheduleNow, sendClassReminders, checkMembershipCredits, getPublicSchedule } from './schedule';
 export { purchaseMembership, createPaymentIntent, createProductPaymentIntent, joinSession, handleStripeWebhook, createRefund, recordManualPayment, getPaymentHistory, setOrderDelivery, deletePayment, getSessionMembers } from './payments';
 export { sendNotification, sendAnnouncement, deliverNotificationOnCreate, retryNotifications, processAnnouncementOnCreate, continueAnnouncements } from './notifications';
-export { getDashboardStats, exportBookingsCSV, contactGym } from './admin';
+export { getDashboardStats, exportBookingsCSV, contactGym, adminEnrollMember, adminRemoveMember, adminAdjustCredits, adminAssignPlan, cancelPendingPayment } from './admin';
 export { submitReview, deleteReview } from './reviews';
 export { acceptWaiver, publishWaiver } from './waiver';
 export { publishLegalPage } from './legal';

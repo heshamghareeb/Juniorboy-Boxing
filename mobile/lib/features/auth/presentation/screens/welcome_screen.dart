@@ -12,6 +12,7 @@ import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/email_auth_sheet.dart';
+import '../../../profile/presentation/providers/profile_provider.dart';
 
 /// Entry screen: brand mark, Apple / Google sign-in buttons, and a Skip button
 /// (continue as guest).
@@ -30,6 +31,7 @@ class _WelcomeState extends ConsumerState<WelcomeScreen> {
     setState(() => busy = true);
     try {
       await ref.read(guestModeProvider.notifier).setGuest(true);
+      ref.invalidate(profileProvider);
       if (mounted) context.go(AppRoutes.home);
     } catch (e) {
       if (mounted) showMessage(context, friendlyError(e));

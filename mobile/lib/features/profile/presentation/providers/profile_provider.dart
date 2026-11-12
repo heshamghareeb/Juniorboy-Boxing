@@ -12,7 +12,11 @@ final userRepositoryProvider = Provider<UserRepository>(
   (ref) => UserRepositoryImpl(UserRemoteDataSource()),
 );
 final profileProvider = StreamProvider<Member>((ref) {
-  if (ref.watch(authProvider).value == null) return const Stream.empty();
+  final isGuest = ref.watch(guestModeProvider);
+  final user = ref.watch(authProvider).value;
+  if (isGuest || user == null || user.isAnonymous) {
+    return const Stream.empty();
+  }
   return ref.watch(userRepositoryProvider).watch();
 });
 final settingsProvider = StreamProvider<GymSettings>(

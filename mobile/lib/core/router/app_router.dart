@@ -21,11 +21,15 @@ import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/information_screen.dart';
 import '../../features/profile/presentation/screens/more_screen.dart';
 import '../../features/profile/presentation/screens/my_bookings_screen.dart';
+import '../../features/booking/presentation/providers/booking_provider.dart';
+import '../../features/notifications/presentation/providers/notification_provider.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
+import '../../features/payments/presentation/providers/payments_provider.dart';
 import '../../features/payments/presentation/screens/payments_screen.dart';
 import '../../features/profile/presentation/screens/waiver_screen.dart';
 import '../../features/reviews/presentation/screens/reviews_screen.dart';
 import '../../features/store/presentation/screens/store_screen.dart';
+import '../../features/favorites/presentation/providers/favorites_provider.dart';
 import '../../features/favorites/presentation/screens/favorites_screen.dart';
 import '../resources/app_strings.dart';
 import 'app_routes.dart';
@@ -33,7 +37,18 @@ import 'app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
-  ref.listen(authProvider, (_, next) => refresh.value++);
+  ref.listen(authProvider, (previous, next) {
+    if (previous?.value?.uid != next.value?.uid) {
+      ref.invalidate(profileProvider);
+      ref.invalidate(bookingsProvider);
+      ref.invalidate(paymentsProvider);
+      ref.invalidate(notificationsProvider);
+      ref.invalidate(favoriteProductIdsProvider);
+      ref.invalidate(favoritePlanIdsProvider);
+      ref.invalidate(favoriteSessionIdsProvider);
+    }
+    refresh.value++;
+  });
   ref.listen(guestModeProvider, (_, next) => refresh.value++);
   ref.listen(profileProvider, (_, next) => refresh.value++);
   final router = GoRouter(
@@ -64,12 +79,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return AppRoutes.completeProfile;
       }
       if (user != null && isAuth) return AppRoutes.home;
-      if (state.uri.path.startsWith(AppRoutes.admin) &&
-          profile.value?.role != 'admin' &&
-          profile.value?.role != 'superAdmin') {
-        return AppRoutes.home;
-      }
       final isGuestUser = isGuest || user == null || user.isAnonymous;
+      if (state.uri.path.startsWith(AppRoutes.admin)) {
+        if (isGuestUser ||
+            (profile.value?.role != 'admin' &&
+                profile.value?.role != 'superAdmin')) {
+          return AppRoutes.home;
+        }
+      }
       if (isGuestUser &&
           (state.uri.path == AppRoutes.bookings ||
               state.uri.path == AppRoutes.profile)) {

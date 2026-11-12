@@ -387,6 +387,11 @@ abstract final class AppStrings {
   static const uiDeleteAccountConfirmTitle = 'Delete Account?';
   static const uiDeleteAccountConfirmMessage =
       'Are you sure you want to permanently delete your account? All your bookings, session credits, and profile data will be permanently removed. This action cannot be undone.';
+  static const uiDeleteAccountPasswordPrompt =
+      'For security, please enter your password to confirm permanent deletion:';
+  static const uiPassword = 'Password';
+  static const uiPasswordRequired = 'Password is required to confirm deletion';
+  static const uiWrongPassword = 'Incorrect password. Account was not deleted.';
   static const uiCancel = 'Cancel';
   static const uiDelete = 'Delete';
   static const uiAccountDeleted = 'Account deleted successfully';
@@ -398,4 +403,5 @@ abstract final class AppStrings {
       'Tap the heart icon on any store product or membership plan to save it here.';
   static const exploreStore = 'Explore Store';
   static const viewPlans = 'View Plans';
+  static const rememberMe = 'Remember me';
 }

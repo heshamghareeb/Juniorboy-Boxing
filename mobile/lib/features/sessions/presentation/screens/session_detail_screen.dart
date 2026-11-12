@@ -18,6 +18,7 @@ import '../../../profile/presentation/providers/profile_provider.dart';
 import '../../models/session_model.dart';
 import '../providers/session_provider.dart';
 import '../widgets/avatar_stack.dart';
+import '../../../admin/presentation/widgets/enroll_member_sheet.dart';
 
 class SessionDetailScreen extends ConsumerStatefulWidget {
   const SessionDetailScreen({super.key, required this.session});
@@ -103,6 +104,15 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
       appBar: AppBar(
         title: Text(session.title),
         actions: [
+          if (isAdmin)
+            IconButton(
+              tooltip: 'Enroll Member',
+              icon: const Icon(Icons.person_add_alt_1),
+              onPressed: () => EnrollMemberSheet.show(
+                context,
+                session: session,
+              ),
+            ),
           FavoriteHeartButton(
             id: session.id,
             type: FavoriteTargetType.session,

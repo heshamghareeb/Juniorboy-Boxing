@@ -26,7 +26,7 @@ class JbbBottomNav extends ConsumerWidget {
       (AppStrings.myBookings, AppIcons.navLog),
       (AppStrings.navHome, AppIcons.navHome),
       (AppStrings.navProfile, AppIcons.user),
-      if (isAdmin) (AppStrings.adminDashboard, AppIcons.admin),
+      if (!isGuest && isAdmin) (AppStrings.adminDashboard, AppIcons.admin),
     ];
     return Container(
       decoration: BoxDecoration(

@@ -53,7 +53,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     if (busyProductId != null) return;
     final id = product.id;
     if (product.sizes.isNotEmpty && selectedSizes[id] == null) {
-      showMessage(context, AppStrings.chooseASizeFirst);
+      showToast(context, AppStrings.chooseASizeFirst);
       return;
     }
 

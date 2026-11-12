@@ -95,4 +95,64 @@ class AdminRepositoryImpl implements AdminRepository {
   );
   @override
   Future<void> removeStaff(String uid) => source.removeStaff(uid);
+
+  @override
+  Future<List<Member>> searchMembers(String query) =>
+      source.searchMembers(query);
+
+  @override
+  Future<void> assignMembershipPlan({
+    required String userId,
+    required MembershipPlan plan,
+    String paymentMethod = 'Cash',
+    int? customCredits,
+    String? note,
+  }) =>
+      source.assignMembershipPlan(
+        userId: userId,
+        plan: plan,
+        paymentMethod: paymentMethod,
+        customCredits: customCredits,
+        note: note,
+      );
+
+  @override
+  Future<void> adjustCredits({
+    required String userId,
+    int groupDelta = 0,
+    int privateDelta = 0,
+    int duoDelta = 0,
+    String? reason,
+  }) =>
+      source.adjustCredits(
+        userId: userId,
+        groupDelta: groupDelta,
+        privateDelta: privateDelta,
+        duoDelta: duoDelta,
+        reason: reason,
+      );
+
+  @override
+  Future<void> enrollMemberInSession({
+    required String sessionId,
+    required String userId,
+    String? timeSlot,
+  }) =>
+      source.enrollMemberInSession(
+        sessionId: sessionId,
+        userId: userId,
+        timeSlot: timeSlot,
+      );
+
+  @override
+  Future<void> removeMemberFromSession({
+    required String sessionId,
+    required String userId,
+    String? reason,
+  }) =>
+      source.removeMemberFromSession(
+        sessionId: sessionId,
+        userId: userId,
+        reason: reason,
+      );
 }

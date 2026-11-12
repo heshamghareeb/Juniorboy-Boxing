@@ -13,6 +13,8 @@ import '../../../../core/widgets/jbb_loading.dart';
 import '../providers/admin_provider.dart';
 import '../../../payments/domain/payment.dart';
 import '../widgets/buyer_name.dart';
+import '../widgets/assign_plan_dialog.dart';
+import '../widgets/member_picker_sheet.dart';
 
 /// Dedicated admin view of membership purchases, separate from store
 /// orders. Credits are added automatically on payment, so this is a
@@ -73,7 +75,34 @@ class _AdminSubscriptionsScreenState
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text(AppStrings.membershipSubscriptions)),
+      appBar: AppBar(
+        title: const Text(AppStrings.membershipSubscriptions),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSizes.s8),
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: context.palette.accent,
+              ),
+              onPressed: () async {
+                final member = await MemberPickerSheet.show(context);
+                if (member == null || !context.mounted) return;
+                final name = '${member.fullName ?? ''} ${member.lastName ?? ''}'.trim();
+                await AssignPlanDialog.show(
+                  context,
+                  userId: member.id,
+                  memberName: name.isNotEmpty ? name : 'Member',
+                );
+              },
+              icon: const Icon(Icons.add_circle_outline, size: 18),
+              label: const Text(
+                'Assign Plan',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: orders.when(
         data: (rows) {
           final subs = rows.where((p) => p.membershipPlanId != null).toList();

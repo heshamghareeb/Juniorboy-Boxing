@@ -22,6 +22,7 @@ import '../../../store/presentation/screens/store_screen.dart';
 import '../providers/admin_provider.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_orders_screen.dart';
+import '../widgets/enroll_member_sheet.dart';
 // import 'admin_subscriptions_screen.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
@@ -117,33 +118,94 @@ class AdminDashboardScreen extends ConsumerWidget {
                 children: [
                   for (final SessionModel s in sorted)
                     JbbCard(
-                      onTap: () => context.safeNavigate(
-                        AppRoutes.adminSessionEditor,
-                        extra: s,
-                      ),
                       child: Row(
                         children: [
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  s.title,
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                Text(
-                                  '${DateFormat('MMM d').format(s.startDate)}–${DateFormat('MMM d').format(s.endDate)} · ${s.startTime}-${s.endTime} · ${s.joinedUserIds.length}/${s.maxParticipants} joined',
-                                  style: TextStyle(
-                                    color: context.palette.textSecondary,
-                                    fontSize: AppSizes.font12,
+                            child: InkWell(
+                              onTap: () => context.safeNavigate(
+                                AppRoutes.sessionMembers,
+                                extra: s,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    s.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: AppSizes.font15,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: AppSizes.s4),
+                                  Text(
+                                    '${DateFormat('MMM d').format(s.startDate)}–${DateFormat('MMM d').format(s.endDate)} · ${s.startTime}-${s.endTime}',
+                                    style: TextStyle(
+                                      color: context.palette.textSecondary,
+                                      fontSize: AppSizes.font12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppSizes.s6),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: AppSizes.s8,
+                                          vertical: AppSizes.s2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: context.palette.accent.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(AppSizes.radius4),
+                                        ),
+                                        child: Text(
+                                          '${s.joinedUserIds.length}/${s.maxParticipants} joined',
+                                          style: TextStyle(
+                                            fontSize: AppSizes.font11,
+                                            fontWeight: FontWeight.bold,
+                                            color: context.palette.accent,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: AppSizes.s6),
+                                      Text(
+                                        'View members ›',
+                                        style: TextStyle(
+                                          fontSize: AppSizes.font11,
+                                          color: context.palette.textSecondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          AppIcon(
-                            AppIcons.chevronRight,
-                            color: context.palette.textSecondary,
+                          // Direct Add Member Button
+                          IconButton.filledTonal(
+                            tooltip: 'Add Member to Session',
+                            style: IconButton.styleFrom(
+                              backgroundColor: context.palette.accent.withValues(alpha: 0.12),
+                              foregroundColor: context.palette.accent,
+                            ),
+                            onPressed: () => EnrollMemberSheet.show(
+                              context,
+                              session: s,
+                            ),
+                            icon: const Icon(Icons.person_add_alt_1, size: 20),
+                          ),
+                          const SizedBox(width: AppSizes.s4),
+                          // Edit Session Button
+                          IconButton(
+                            tooltip: 'Edit Session Details',
+                            onPressed: () => context.safeNavigate(
+                              AppRoutes.adminSessionEditor,
+                              extra: s,
+                            ),
+                            icon: Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: context.palette.textSecondary,
+                            ),
                           ),
                         ],
                       ),

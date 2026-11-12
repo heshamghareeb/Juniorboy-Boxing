@@ -12,6 +12,8 @@ import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/jbb_loading.dart';
 import '../../../profile/domain/member.dart';
 import '../providers/admin_provider.dart';
+import 'assign_plan_dialog.dart';
+import 'adjust_credits_dialog.dart';
 
 /// Shows a comprehensive profile sheet for a member with their details,
 /// remaining credits, contact information, and direct action buttons (Call/WhatsApp/Email).
@@ -170,8 +172,9 @@ class _AdminMemberProfileSheetState
   }
 
   Widget _buildMemberContent(Member m) {
-    final name = '${m.fullName ?? ''} ${m.lastName ?? ''}'.trim();
-    final displayName = name.isNotEmpty ? name : 'Member';
+    final child = m.childName.trim();
+    final full = '${m.fullName ?? ''} ${m.lastName ?? ''}'.trim();
+    final displayName = child.isNotEmpty ? child : (full.isNotEmpty ? full : 'Member');
     final hasPhone = (m.phone ?? '').trim().isNotEmpty;
     final hasEmail = (m.email ?? '').trim().isNotEmpty;
 
@@ -338,6 +341,69 @@ class _AdminMemberProfileSheetState
                   fontSize: AppSizes.font12,
                   color: context.palette.textSecondary,
                 ),
+              ),
+              const SizedBox(height: AppSizes.s12),
+              const Divider(height: 1),
+              const SizedBox(height: AppSizes.s12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: AppSizes.s10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radius8),
+                        ),
+                        side: BorderSide(color: context.palette.accent),
+                        foregroundColor: context.palette.accent,
+                      ),
+                      onPressed: () async {
+                        final refreshed = await AssignPlanDialog.show(
+                          context,
+                          userId: m.id,
+                          memberName: displayName,
+                        );
+                        if (refreshed == true && mounted) _loadMember();
+                      },
+                      icon: const Icon(Icons.card_membership, size: 18),
+                      label: const Text(
+                        'Assign Plan',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppSizes.font13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSizes.s8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: AppSizes.s10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppSizes.radius8),
+                        ),
+                        side: BorderSide(color: context.palette.separator),
+                        foregroundColor: context.palette.textPrimary,
+                      ),
+                      onPressed: () async {
+                        final refreshed = await AdjustCreditsDialog.show(
+                          context,
+                          member: m,
+                        );
+                        if (refreshed == true && mounted) _loadMember();
+                      },
+                      icon: const Icon(Icons.tune, size: 18),
+                      label: const Text(
+                        'Adjust Credits',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppSizes.font13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

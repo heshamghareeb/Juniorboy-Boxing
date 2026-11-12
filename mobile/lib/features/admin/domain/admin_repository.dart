@@ -39,4 +39,29 @@ abstract class AdminRepository {
     required Map<String, bool> permissions,
   });
   Future<void> removeStaff(String uid);
+  Future<List<Member>> searchMembers(String query);
+  Future<void> assignMembershipPlan({
+    required String userId,
+    required MembershipPlan plan,
+    String paymentMethod = 'Cash',
+    int? customCredits,
+    String? note,
+  });
+  Future<void> adjustCredits({
+    required String userId,
+    int groupDelta = 0,
+    int privateDelta = 0,
+    int duoDelta = 0,
+    String? reason,
+  });
+  Future<void> enrollMemberInSession({
+    required String sessionId,
+    required String userId,
+    String? timeSlot,
+  });
+  Future<void> removeMemberFromSession({
+    required String sessionId,
+    required String userId,
+    String? reason,
+  });
 }

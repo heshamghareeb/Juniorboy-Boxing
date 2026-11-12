@@ -5,8 +5,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 const themeModeKey = 'themeMode';
 ThemeMode parseThemeMode(Object? value) => switch (value) {
   'light' => ThemeMode.light,
-  'dark' => ThemeMode.dark,
-  _ => ThemeMode.system,
+  'system' => ThemeMode.system,
+  _ => ThemeMode.dark,
 };
 
 class ThemeModeNotifier extends Notifier<ThemeMode> {

@@ -37,7 +37,7 @@ class _StoreScreenState extends ConsumerState<StoreScreen> {
     final id = product.id;
     final sizes = product.sizes;
     if (sizes.isNotEmpty && selectedSize[id] == null) {
-      showMessage(context, AppStrings.chooseASizeFirst);
+      showToast(context, AppStrings.chooseASizeFirst);
       return;
     }
     setState(() => busyProductId = id);

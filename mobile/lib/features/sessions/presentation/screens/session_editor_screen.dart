@@ -7,11 +7,14 @@ import 'package:intl/intl.dart';
 import '../../../../core/resources/app_icons.dart';
 import '../../../../core/resources/app_sizes.dart';
 import '../../../../core/resources/app_strings.dart';
+import '../../../../core/router/app_routes.dart';
 import '../../../../core/theme/app_palette.dart';
+import '../../../../core/utils/nav_debounce.dart';
 import '../../../../core/utils/snackbar_utils.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/jbb_button.dart';
+import '../../../admin/presentation/widgets/enroll_member_sheet.dart';
 import '../../models/session_model.dart';
 import '../providers/session_provider.dart';
 
@@ -262,8 +265,28 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
     appBar: AppBar(
       title: Text(widget.session == null ? AppStrings.addSession : AppStrings.uiEditSession),
       actions: [
-        if (widget.session != null)
-          IconButton(onPressed: busy ? null : delete, icon: const AppIcon(AppIcons.trash)),
+        if (widget.session != null) ...[
+          IconButton(
+            tooltip: 'Enroll Member',
+            icon: const Icon(Icons.person_add_alt_1),
+            onPressed: () => EnrollMemberSheet.show(
+              context,
+              session: widget.session!,
+            ),
+          ),
+          IconButton(
+            tooltip: 'View Members',
+            icon: const Icon(Icons.groups_outlined),
+            onPressed: () => context.safeNavigate(
+              AppRoutes.sessionMembers,
+              extra: widget.session!,
+            ),
+          ),
+          IconButton(
+            onPressed: busy ? null : delete,
+            icon: const AppIcon(AppIcons.trash),
+          ),
+        ],
       ],
     ),
     body: SingleChildScrollView(
@@ -273,6 +296,63 @@ class _SessionEditorState extends ConsumerState<SessionEditorScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (widget.session != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: AppSizes.s16),
+                padding: const EdgeInsets.all(AppSizes.s12),
+                decoration: BoxDecoration(
+                  color: context.palette.surface,
+                  borderRadius: BorderRadius.circular(AppSizes.radius12),
+                  border: Border.all(color: context.palette.separator),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.people_alt_outlined, color: context.palette.accent),
+                    const SizedBox(width: AppSizes.s10),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => context.safeNavigate(
+                          AppRoutes.sessionMembers,
+                          extra: widget.session!,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Joined: ${widget.session!.joinedUserIds.length}/${widget.session!.maxParticipants} members',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Tap to view members or enroll walk-ins',
+                              style: TextStyle(
+                                fontSize: AppSizes.font11,
+                                color: context.palette.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: context.palette.accent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSizes.s12,
+                          vertical: AppSizes.s8,
+                        ),
+                      ),
+                      onPressed: () => EnrollMemberSheet.show(
+                        context,
+                        session: widget.session!,
+                      ),
+                      icon: const Icon(Icons.person_add_alt_1, size: 16),
+                      label: const Text('Enroll'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             Center(
               child: GestureDetector(
                 onTap: photoBusy ? null : pickPhoto,

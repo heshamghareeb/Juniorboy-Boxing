@@ -1,8 +1,10 @@
 import '../../../../core/theme/app_palette.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/config/app_debug_config.dart';
 import '../../../../core/resources/app_icons.dart';
 import '../../../../core/resources/app_sizes.dart';
 import '../../../../core/resources/app_strings.dart';
@@ -19,6 +21,8 @@ import '../../../../core/widgets/social_links_row.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/widgets/sign_in_prompt_sheet.dart';
 import '../../../favorites/presentation/providers/favorites_provider.dart';
+import '../../../booking/presentation/providers/booking_provider.dart';
+import '../../../payments/presentation/providers/payments_provider.dart';
 import '../providers/profile_provider.dart';
 
 class MoreScreen extends ConsumerWidget {
@@ -134,20 +138,7 @@ class MoreScreen extends ConsumerWidget {
                 },
               ),
             SettingsRow(
-              iconWidget: Container(
-                width: AppSizes.iconChip,
-                height: AppSizes.iconChip,
-                decoration: BoxDecoration(
-                  color: Colors.redAccent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppSizes.iconChipRadius),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.favorite_rounded,
-                  size: AppSizes.s18,
-                  color: Colors.redAccent,
-                ),
-              ),
+              icon: AppIcons.heart,
               title: AppStrings.favorites,
               trailing: (favCount > 0)
                   ? Container(
@@ -254,9 +245,14 @@ class MoreScreen extends ConsumerWidget {
           OutlinedButton(
             onPressed: () async {
               try {
+                final authRepo = ref.read(authRepositoryProvider);
+                final guestNotifier = ref.read(guestModeProvider.notifier);
+                await authRepo.signOut();
+                await guestNotifier.setGuest(false);
+                ref.invalidate(profileProvider);
+                ref.invalidate(bookingsProvider);
+                ref.invalidate(paymentsProvider);
                 if (context.mounted) context.go(AppRoutes.welcome);
-                await ref.read(authRepositoryProvider).signOut();
-                await ref.read(guestModeProvider.notifier).setGuest(false);
               } catch (e) {
                 if (context.mounted) showMessage(context, friendlyError(e));
               }
@@ -309,51 +305,204 @@ class MoreScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final account = ref.read(authRepositoryProvider).currentUser;
+    final requiresPassword = account?.hasEmailProvider ?? false;
+
+    if (AppDebugConfig.enableDeleteAccountLogs) {
+      debugPrint('👉 [DELETE_ACCOUNT_DEBUG #0] Opening delete account confirmation dialog...');
+    }
+
+    await showDialog<void>(
       context: context,
       useRootNavigator: true,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          AppStrings.uiDeleteAccountConfirmTitle,
-          style: TextStyle(
-            color: dialogContext.palette.textPrimary,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          AppStrings.uiDeleteAccountConfirmMessage,
-          style: TextStyle(color: dialogContext.palette.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(
-              AppStrings.uiCancel,
-              style: TextStyle(color: dialogContext.palette.textSecondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(
-              AppStrings.uiDelete,
-              style: TextStyle(
-                color: dialogContext.palette.accent,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+      builder: (dialogContext) => _DeleteAccountConfirmDialog(
+        requiresPassword: requiresPassword,
+        onDelete: (password) async {
+          await ref.read(authRepositoryProvider).deleteAccount(
+            password: password,
+          );
+        },
       ),
     );
-    if (confirmed != true || !context.mounted) return;
+  }
+}
+
+class _DeleteAccountConfirmDialog extends StatefulWidget {
+  const _DeleteAccountConfirmDialog({
+    required this.requiresPassword,
+    required this.onDelete,
+  });
+
+  final bool requiresPassword;
+  final Future<void> Function(String? password) onDelete;
+
+  @override
+  State<_DeleteAccountConfirmDialog> createState() =>
+      _DeleteAccountConfirmDialogState();
+}
+
+class _DeleteAccountConfirmDialogState
+    extends State<_DeleteAccountConfirmDialog> {
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorText;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleDelete() async {
+    final pwd = _passwordController.text.trim();
+    if (widget.requiresPassword && pwd.isEmpty) {
+      setState(() {
+        _errorText = AppStrings.uiPasswordRequired;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorText = null;
+    });
+
     try {
-      await ref.read(authRepositoryProvider).deleteAccount();
-      if (context.mounted) {
+      await widget.onDelete(pwd.isNotEmpty ? pwd : null);
+      if (AppDebugConfig.enableDeleteAccountLogs) {
+        debugPrint('👉 [DELETE_ACCOUNT_DEBUG #8] deleteAccount finished. Showing snackbar & redirecting to Welcome...');
+      }
+      if (mounted) {
+        if (Navigator.of(context, rootNavigator: true).canPop()) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
         showMessage(context, AppStrings.uiAccountDeleted);
         context.go(AppRoutes.welcome);
       }
-    } catch (e) {
-      if (context.mounted) showMessage(context, friendlyError(e));
+    } catch (e, stack) {
+      if (AppDebugConfig.enableDeleteAccountLogs) {
+        debugPrint('❌ [DELETE_ACCOUNT_DEBUG_ERROR] UI caught error: $e');
+        debugPrint('   └── Stack: $stack');
+      }
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        if (e is FirebaseAuthException &&
+            (e.code == 'wrong-password' || e.code == 'invalid-credential')) {
+          _errorText = AppStrings.uiWrongPassword;
+        }
+      });
+      if (e is! FirebaseAuthException ||
+          (e.code != 'wrong-password' && e.code != 'invalid-credential')) {
+        showMessage(context, friendlyError(e));
+      }
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        AppStrings.uiDeleteAccountConfirmTitle,
+        style: TextStyle(
+          color: context.palette.textPrimary,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              AppStrings.uiDeleteAccountConfirmMessage,
+              style: TextStyle(color: context.palette.textSecondary),
+            ),
+            if (widget.requiresPassword) ...[
+              const SizedBox(height: 16),
+              Text(
+                AppStrings.uiDeleteAccountPasswordPrompt,
+                style: TextStyle(
+                  color: context.palette.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                enabled: !_isLoading,
+                autofocus: true,
+                style: TextStyle(color: context.palette.textPrimary),
+                decoration: InputDecoration(
+                  labelText: AppStrings.uiPassword,
+                  errorText: _errorText,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: context.palette.textSecondary,
+                    ),
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onChanged: (_) {
+                  if (_errorText != null) {
+                    setState(() => _errorText = null);
+                  }
+                },
+                onSubmitted: (_) {
+                  if (!_isLoading) _handleDelete();
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading
+              ? null
+              : () => Navigator.of(context, rootNavigator: true).pop(),
+          child: Text(
+            AppStrings.uiCancel,
+            style: TextStyle(
+              color: _isLoading
+                  ? context.palette.textTertiary
+                  : context.palette.textSecondary,
+            ),
+          ),
+        ),
+        TextButton(
+          onPressed: _isLoading ? null : _handleDelete,
+          child: _isLoading
+              ? SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: context.palette.accent,
+                  ),
+                )
+              : Text(
+                  AppStrings.uiDelete,
+                  style: TextStyle(
+                    color: context.palette.accent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+        ),
+      ],
+    );
   }
 }

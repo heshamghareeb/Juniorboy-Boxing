@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/data/cached_repository.dart';
+import '../../membership/domain/membership_plan.dart';
 import '../../profile/data/member_model.dart';
 import '../../profile/domain/member.dart';
 import '../domain/staff_member.dart';
@@ -148,4 +150,129 @@ class AdminRemoteDataSource extends CachedRepository {
   Future<void> removeStaff(String uid) => FirebaseFunctions.instance
       .httpsCallable('removeStaff')
       .call({'uid': uid});
+
+  Future<List<Member>> searchMembers(String query) async {
+    final snap = await db.collection('users').limit(150).get();
+    final q = query.trim().toLowerCase();
+    final allMembers = snap.docs
+        .map((doc) {
+          final data = doc.data();
+          return MemberModel.fromMap({...data, 'id': doc.id});
+        })
+        .where((m) {
+          // Strictly exclude admins, superAdmins, and deleted accounts from member enrollment
+          final r = (m.role ?? '').toLowerCase();
+          if (r == 'admin' || r == 'superadmin') return false;
+          if (m.fullName == 'Deleted User' && (m.email ?? '').isEmpty) return false;
+          return true;
+        })
+        .toList();
+
+    if (q.isEmpty) return allMembers;
+
+    return allMembers.where((m) {
+      final child = m.childName.toLowerCase();
+      final full = '${m.fullName ?? ''} ${m.lastName ?? ''}'.toLowerCase();
+      final email = (m.email ?? '').toLowerCase();
+      final phone = (m.phone ?? '').toLowerCase();
+      return child.contains(q) ||
+          full.contains(q) ||
+          email.contains(q) ||
+          phone.contains(q);
+    }).toList();
+  }
+
+  Future<void> assignMembershipPlan({
+    required String userId,
+    required MembershipPlan plan,
+    String paymentMethod = 'Cash',
+    int? customCredits,
+    String? note,
+  }) async {
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('adminAssignPlan');
+      await callable.call({
+        'userId': userId,
+        'planId': plan.id,
+        'paymentMethod': paymentMethod,
+        'customCredits': ?customCredits,
+        if (note != null && note.isNotEmpty) 'note': note,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('👉 [ASSIGN_PLAN_ERROR] ${e.code}: ${e.message}');
+      throw Exception(e.message ?? 'Failed to assign plan');
+    }
+  }
+
+  Future<void> adjustCredits({
+    required String userId,
+    int groupDelta = 0,
+    int privateDelta = 0,
+    int duoDelta = 0,
+    String? reason,
+  }) async {
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('adminAdjustCredits');
+      await callable.call({
+        'userId': userId,
+        'groupDelta': groupDelta,
+        'privateDelta': privateDelta,
+        'duoDelta': duoDelta,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('👉 [ADJUST_CREDITS_ERROR] ${e.code}: ${e.message}');
+      throw Exception(e.message ?? 'Failed to adjust credits');
+    }
+  }
+
+  Future<void> enrollMemberInSession({
+    required String sessionId,
+    required String userId,
+    String? timeSlot,
+  }) async {
+    debugPrint('👉 [ENROLL_MEMBER_DEBUG 1] Initiating enrollMemberInSession...');
+    debugPrint('👉 [ENROLL_MEMBER_DEBUG 1] SessionId: $sessionId, UserId: $userId, TimeSlot: $timeSlot');
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('adminEnrollMember');
+      debugPrint('👉 [ENROLL_MEMBER_DEBUG 2] Calling Cloud Function adminEnrollMember...');
+      final result = await callable.call({
+        'sessionId': sessionId,
+        'userId': userId,
+        if (timeSlot != null && timeSlot.isNotEmpty) 'timeSlot': timeSlot,
+      });
+      debugPrint('👉 [ENROLL_MEMBER_DEBUG 3] Cloud Function returned success: ${result.data}');
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('👉 [ENROLL_MEMBER_DEBUG ERROR] Code: ${e.code}, Message: ${e.message}, Details: ${e.details}');
+      throw Exception(e.message ?? 'Failed to enroll member (${e.code})');
+    } catch (e, st) {
+      debugPrint('👉 [ENROLL_MEMBER_DEBUG ERROR] Unexpected: $e\n$st');
+      rethrow;
+    }
+  }
+
+  Future<void> removeMemberFromSession({
+    required String sessionId,
+    required String userId,
+    String? reason,
+  }) async {
+    debugPrint('👉 [REMOVE_MEMBER_DEBUG 1] Initiating removeMemberFromSession...');
+    debugPrint('👉 [REMOVE_MEMBER_DEBUG 1] SessionId: $sessionId, UserId: $userId, Reason: $reason');
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('adminRemoveMember');
+      debugPrint('👉 [REMOVE_MEMBER_DEBUG 2] Calling Cloud Function adminRemoveMember...');
+      final result = await callable.call({
+        'sessionId': sessionId,
+        'userId': userId,
+        if (reason != null && reason.isNotEmpty) 'reason': reason,
+      });
+      debugPrint('👉 [REMOVE_MEMBER_DEBUG 3] Cloud Function returned success: ${result.data}');
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('👉 [REMOVE_MEMBER_DEBUG ERROR] Code: ${e.code}, Message: ${e.message}, Details: ${e.details}');
+      throw Exception(e.message ?? 'Failed to remove member (${e.code})');
+    } catch (e, st) {
+      debugPrint('👉 [REMOVE_MEMBER_DEBUG ERROR] Unexpected: $e\n$st');
+      rethrow;
+    }
+  }
 }

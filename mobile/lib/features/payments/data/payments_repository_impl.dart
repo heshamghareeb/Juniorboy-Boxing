@@ -11,4 +11,8 @@ class PaymentsRepositoryImpl implements PaymentsRepository {
   Stream<List<Payment>> watch() => source.watch().map(
     (rows) => rows.map<Payment>(PaymentModel.fromMap).toList(),
   );
+
+  @override
+  Future<void> cancelPendingOrder(String paymentId) =>
+      source.cancelPendingOrder(paymentId);
 }

@@ -30,16 +30,31 @@ abstract class CachedRepository {
     Query<Map<String, dynamic>> query,
     String key,
   ) async* {
-    final cacheKey =
-        '${FirebaseAuth.instance.currentUser?.uid ?? 'public'}:$key';
+    final isUserScoped =
+        key == 'bookings' || key == 'payments' || key == 'user';
+    final cacheKey = isUserScoped
+        ? '${FirebaseAuth.instance.currentUser?.uid ?? 'public'}:$key'
+        : 'public:$key';
     final stored = cache.get(cacheKey);
+    var hasEmitted = false;
     if (stored is String) {
-      yield (jsonDecode(stored) as List)
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+      try {
+        final decoded = (jsonDecode(stored) as List)
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+        hasEmitted = true;
+        yield decoded;
+      } catch (_) {}
+    } else if (isUserScoped) {
+      // For user-scoped data (bookings, payments), yield empty immediately
+      // so a new user does not get stuck in a loading shimmer state.
+      yield const <Map<String, dynamic>>[];
+      hasEmitted = true;
     }
     final stream = query.snapshots().handleError(
-      (Object _) {},
+      (Object e) {
+        // Suppress permission denied in stream listener
+      },
       test: _isPermissionDenied,
     );
     try {
@@ -58,13 +73,18 @@ abstract class CachedRepository {
             )
             .toList();
         await cache.put(cacheKey, jsonEncode(rows));
+        hasEmitted = true;
         yield rows;
       }
     } catch (e) {
       if (_isPermissionDenied(e)) {
+        if (!hasEmitted) yield const <Map<String, dynamic>>[];
         return;
       }
       rethrow;
+    }
+    if (!hasEmitted) {
+      yield const <Map<String, dynamic>>[];
     }
   }
 
@@ -75,7 +95,13 @@ abstract class CachedRepository {
     final cacheKey =
         '${FirebaseAuth.instance.currentUser?.uid ?? 'public'}:$key';
     final stored = cache.get(cacheKey);
-    if (stored is String) yield Map<String, dynamic>.from(jsonDecode(stored));
+    var hasEmitted = false;
+    if (stored is String) {
+      try {
+        yield Map<String, dynamic>.from(jsonDecode(stored));
+        hasEmitted = true;
+      } catch (_) {}
+    }
     final stream = ref.snapshots().handleError(
       (Object _) {},
       test: _isPermissionDenied,
@@ -88,13 +114,18 @@ abstract class CachedRepository {
           'id': snapshot.id,
         };
         await cache.put(cacheKey, jsonEncode(row));
+        hasEmitted = true;
         yield row;
       }
     } catch (e) {
       if (_isPermissionDenied(e)) {
+        if (!hasEmitted) yield const <String, dynamic>{};
         return;
       }
       rethrow;
+    }
+    if (!hasEmitted) {
+      yield const <String, dynamic>{};
     }
   }
 }

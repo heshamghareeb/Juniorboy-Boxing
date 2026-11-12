@@ -3,40 +3,44 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function active() {
-      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true;
+      return signedIn() && (
+        !exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive != false
+      );
     }
     function admin() {
-      return active() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superAdmin'];
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superAdmin'];
     }
     function owns() { return active() && resource.data.userId == request.auth.uid; }
+
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || admin());
-      allow update: if active() && request.auth.uid == uid
+      allow create: if signedIn() && request.auth.uid == uid
+        && (!('role' in request.resource.data) || request.resource.data.role == 'member')
+        && (!('isActive' in request.resource.data) || request.resource.data.isActive == true);
+      allow update: if signedIn() && (admin() || (request.auth.uid == uid
+        && (!('isActive' in resource.data) || resource.data.isActive != false)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'lastName', 'age', 'dateOfBirth', 'address', 'zipCode', 'phone', 'childName', 'childAge', 'avatarUrl', 'profilePicUrl', 'updatedAt', 'notificationPreferences', 'termsAccepted', 'termsAcceptedAt', 'termsVersion'])
-        && request.resource.data.fullName is string && request.resource.data.fullName.size() > 0 && request.resource.data.fullName.size() <= 100
-        && request.resource.data.lastName is string && request.resource.data.lastName.size() <= 100
-        && request.resource.data.age is int && request.resource.data.age >= 0 && request.resource.data.age <= 120
+        && (!('fullName' in request.resource.data) || (request.resource.data.fullName is string && request.resource.data.fullName.size() > 0 && request.resource.data.fullName.size() <= 100))
+        && (!('lastName' in request.resource.data) || (request.resource.data.lastName is string && request.resource.data.lastName.size() <= 100))
+        && (!('age' in request.resource.data) || (request.resource.data.age is int && request.resource.data.age >= 0 && request.resource.data.age <= 120))
         && (!('dateOfBirth' in request.resource.data) || request.resource.data.dateOfBirth is timestamp)
-        && request.resource.data.address is string && request.resource.data.address.size() <= 200
-        && request.resource.data.zipCode is string && request.resource.data.zipCode.size() <= 20
-        && request.resource.data.phone is string && request.resource.data.phone.size() <= 32
-        && request.resource.data.childName is string && request.resource.data.childName.size() <= 100
-        && request.resource.data.childAge is int && request.resource.data.childAge >= 0 && request.resource.data.childAge <= 120
-        && request.resource.data.avatarUrl is string && request.resource.data.avatarUrl.size() <= 2048
+        && (!('address' in request.resource.data) || (request.resource.data.address is string && request.resource.data.address.size() <= 200))
+        && (!('zipCode' in request.resource.data) || (request.resource.data.zipCode is string && request.resource.data.zipCode.size() <= 20))
+        && (!('phone' in request.resource.data) || (request.resource.data.phone is string && request.resource.data.phone.size() <= 32))
+        && (!('childName' in request.resource.data) || (request.resource.data.childName is string && request.resource.data.childName.size() <= 100))
+        && (!('childAge' in request.resource.data) || (request.resource.data.childAge is int && request.resource.data.childAge >= 0 && request.resource.data.childAge <= 120))
+        && (!('avatarUrl' in request.resource.data) || (request.resource.data.avatarUrl is string && request.resource.data.avatarUrl.size() <= 2048))
         && (!('profilePicUrl' in request.resource.data) || (request.resource.data.profilePicUrl is string && request.resource.data.profilePicUrl.size() <= 2048))
-        && request.resource.data.notificationPreferences.keys().hasOnly(['push', 'email', 'offers', 'reminders', 'marketing'])
-        && request.resource.data.notificationPreferences.push is bool
-        && request.resource.data.notificationPreferences.email is bool
-        && (!('offers' in request.resource.data.notificationPreferences) || request.resource.data.notificationPreferences.offers is bool)
-        && (!('reminders' in request.resource.data.notificationPreferences) || request.resource.data.notificationPreferences.reminders is bool)
-        && (!('marketing' in request.resource.data.notificationPreferences) || request.resource.data.notificationPreferences.marketing is bool)
+        && (!('notificationPreferences' in request.resource.data) || (request.resource.data.notificationPreferences.keys().hasOnly(['push', 'email', 'offers', 'reminders', 'marketing']) && request.resource.data.notificationPreferences.push is bool && request.resource.data.notificationPreferences.email is bool))
         && (!('termsAccepted' in request.resource.data) || request.resource.data.termsAccepted is bool)
         && (!('termsAcceptedAt' in request.resource.data) || request.resource.data.termsAcceptedAt is timestamp)
         && (!('termsVersion' in request.resource.data) || (request.resource.data.termsVersion is string && request.resource.data.termsVersion.size() <= 20))
-        && request.resource.data.updatedAt == request.time;
+        && request.resource.data.updatedAt == request.time));
+
       match /devices/{deviceId} {
-        allow read, delete: if active() && request.auth.uid == uid;
-        allow create, update: if active() && request.auth.uid == uid
+        allow read, delete: if signedIn() && request.auth.uid == uid;
+        allow create, update: if signedIn() && request.auth.uid == uid
           && request.resource.data.keys().hasOnly(['token','platform','updatedAt'])
           && request.resource.data.token is string && request.resource.data.token.size() <= 4096
           && request.resource.data.platform in ['android','web','ios']
@@ -47,8 +51,12 @@ service cloud.firestore {
     match /sessions/{id} { allow read: if true; allow write: if admin(); }
     match /schedule/{id} { allow read: if active(); }
     match /recurringTemplates/{id} { allow read, write: if admin(); }
-    match /bookings/{id} { allow read: if owns() || admin(); }
-    match /payments/{id} { allow read: if owns() || admin(); }
+    match /bookings/{id} { allow read: if owns() || admin(); allow write: if admin(); }
+    match /payments/{id} {
+      allow read: if owns() || admin();
+      allow delete: if (owns() && resource.data.status == 'pending') || admin();
+      allow write: if admin();
+    }
     match /membershipPlans/{id} { allow read: if resource.data.isActive == true || admin(); allow write: if admin(); }
     match /homeAds/{id} { allow read: if resource.data.isActive == true || admin(); allow write: if admin(); }
     match /galleryPhotos/{id} { allow read: if resource.data.isVisible == true || admin(); allow write: if admin(); }
